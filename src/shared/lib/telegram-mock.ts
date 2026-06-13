@@ -1,5 +1,5 @@
 export function initTelegramMock() {
-  if (process.env.NODE_ENV === 'development' && !window.Telegram) {
+  if (process.env.NODE_ENV === 'development' && typeof window !== undefined && !window.Telegram) {
     window.Telegram = {
       WebApp: {
         ready: () => console.log('[Mock] WebApp.ready()'),

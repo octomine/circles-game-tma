@@ -13,13 +13,13 @@ const TelegramContext = createContext<ITelegramContext>({
 })
 
 export function TelegramProvider({ children }: { children: ReactNode }) {
-  initTelegramMock();
-
   const [webApp, setWebApp] = useState<TgWebApp | null>(null);
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
-    if (window !== undefined && window.Telegram?.WebApp) {
+    initTelegramMock();
+
+    if (typeof window !== undefined && window.Telegram?.WebApp) {
       const tg = window.Telegram?.WebApp;
 
       tg.ready();
