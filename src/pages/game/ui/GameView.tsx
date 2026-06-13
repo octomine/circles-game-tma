@@ -1,4 +1,4 @@
-import { GameCanvasWidget } from "@/widgets/game-canvas/ui/GameCanvasWidget"
+import { GameCanvasWidget } from "@/widgets/game-canvas";
 
 export const GameView = () => {
   return (

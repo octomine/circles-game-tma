@@ -1,4 +1,4 @@
-import { GameView } from "@/pages/game/ui/GameView";
+import { GameView } from "@/pages/game";
 
 export default function GamePage() {
   return <GameView />

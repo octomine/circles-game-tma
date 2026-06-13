@@ -32,7 +32,7 @@ export function GameCanvasWidget() {
       graphics.circle(app.screen.width / 2, app.screen.height / 2, 50);
       graphics.fill(0x3390ec);
       app.stage.addChild(graphics);
-    })
+    });
 
     return () => {
       if (appRef.current) {
