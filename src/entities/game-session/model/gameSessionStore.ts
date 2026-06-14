@@ -1,18 +1,16 @@
 import { create } from 'zustand';
 import type { GameSessionState } from '../types/gameSessionStore.types';
-import { getDefaultGameData, AVAILABLE_COLORS } from './defaults';
+import { GAME_CONFIG } from '../config/constants';
+import { getDefaultGameData } from './defaults';
 
 export const useGameSessionStore = create<GameSessionState>((set, get) => ({
-  // 1. Инициализация дефолтными данными
   ...getDefaultGameData(),
 
-  // 2. Действия
   setScreen: (status) => set({ status }),
 
   startGame: () => {
     const defaults = getDefaultGameData();
-    // Выбираем случайный цвет при старте
-    const randomColor = AVAILABLE_COLORS[Math.floor(Math.random() * AVAILABLE_COLORS.length)];
+    const randomColor = GAME_CONFIG.COLORS[Math.floor(Math.random() * GAME_CONFIG.COLORS.length)];
 
     set({
       ...defaults,
@@ -33,29 +31,26 @@ export const useGameSessionStore = create<GameSessionState>((set, get) => ({
 
   changeTargetColor: () => {
     const currentColor = get().targetColor;
-    // Фильтруем, чтобы новый цвет не совпадал с текущим
-    const available = AVAILABLE_COLORS.filter((c) => c !== currentColor);
+    const available = GAME_CONFIG.COLORS.filter((c) => c !== currentColor);
     const newColor = available[Math.floor(Math.random() * available.length)];
 
     set({
       targetColor: newColor,
-      timeToNextColor: 10, // Сброс таймера
+      timeToNextColor: GAME_CONFIG.TIME_TO_CHANGE_COLOR,
     });
   },
 
   tickTime: (deltaSeconds) => set((state) => {
-    // Тикаем только во время игры
     if (state.status !== 'playing') return state;
 
     const newTime = state.timeToNextColor - deltaSeconds;
 
     if (newTime <= 0) {
-      // Время вышло, меняем цвет автоматически
-      const available = AVAILABLE_COLORS.filter((c) => c !== state.targetColor);
+      const available = GAME_CONFIG.COLORS.filter((c) => c !== state.targetColor);
       const newColor = available[Math.floor(Math.random() * available.length)];
 
       return {
-        timeToNextColor: 10,
+        timeToNextColor: GAME_CONFIG.TIME_TO_CHANGE_COLOR,
         targetColor: newColor,
       };
     }
