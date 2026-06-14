@@ -1,1 +1,1 @@
-export { TelegramProvider } from './providers/TelegramProvider';
+export * from './providers/TelegramProvider';
