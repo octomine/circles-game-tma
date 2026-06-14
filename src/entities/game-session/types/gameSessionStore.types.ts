@@ -1,11 +1,27 @@
-export type GameScreen = 'menu' | 'game' | 'gameOver';
+export type GameStatus = 'menu' | 'playing' | 'gameover';
 
-export interface GameSessionState {
-  screen: GameScreen;
+// Строгий тип для HEX-цветов (например, '#FF5733')
+export type ColorHex = `#${string}`;
+
+// Чистые данные состояния
+export interface GameSessionData {
+  status: GameStatus;
   score: number;
-  setScreen: (screen: GameScreen) => void;
-  addScore: (score: number) => void;
-  reset: () => void;
-};
+  lives: number;
+  targetColor: ColorHex;
+  timeToNextColor: number; // в секундах
+}
 
-export type GameSessionStateDefault = Omit<GameSessionState, 'setScreen' | 'addScore' | 'reset'>;
+// Действия, которые могут изменять состояние
+export interface GameSessionActions {
+  setScreen: (status: GameStatus) => void;
+  startGame: () => void;
+  addScore: (points: number) => void;
+  loseLife: () => void;
+  changeTargetColor: () => void; // Выбирает новый случайный цвет
+  tickTime: (deltaSeconds: number) => void; // Обновление таймера из game loop
+  reset: () => void;
+}
+
+// Итоговый тип стора = данные + действия
+export type GameSessionState = GameSessionData & GameSessionActions;

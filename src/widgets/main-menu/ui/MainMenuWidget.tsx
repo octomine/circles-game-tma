@@ -6,7 +6,8 @@ import { useGameSessionStore } from "@/entities/game-session";
 
 export function MainMenuWidget() {
   const { isReady, user, webApp } = useTelegram();
-  const { score, setScreen } = useGameSessionStore();
+  const setScreen = useGameSessionStore((state) => state.setScreen);
+  const score = useGameSessionStore((state) => state.score);
 
   // Показываем лоадер, пока Telegram SDK не инициализирован
   if (!isReady) {
@@ -43,7 +44,7 @@ export function MainMenuWidget() {
         onClick={() => {
           // Тестируем haptic feedback из нашего мока/реального SDK
           webApp?.HapticFeedback.impactOccurred('medium');
-          setScreen('game');
+          setScreen('playing');
         }}
         className="w-full max-w-xs py-4 px-6 rounded-xl font-bold text-lg text-[var(--tg-theme-button-text-color)] bg-[var(--tg-theme-button-color)] active:opacity-80 transition-all shadow-lg"
       >
