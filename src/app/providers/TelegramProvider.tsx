@@ -1,62 +1,82 @@
-'use client';
+"use client";
 
-import { createContext, ReactNode, useContext, useEffect, useState } from "react";
-import { ITelegramContext, TgWebApp } from "../types/TelegramContext.types";
-import { ThemeParams } from "@twa-dev/types";
-import { initTelegramMock } from "@/shared";
-
-const TelegramContext = createContext<ITelegramContext>({
-  webApp: null,
-  isReady: false,
-  user: null,
-  theme: null,
-})
+import { useEffect, useState, ReactNode } from 'react';
+import { TelegramContext, ITelegramContext } from '@/shared/lib/telegram';
+import { initTelegramMock } from '@/shared/lib/telegram-mock';
 
 export function TelegramProvider({ children }: { children: ReactNode }) {
-  const [webApp, setWebApp] = useState<TgWebApp | null>(null);
-  const [isReady, setIsReady] = useState(false);
+  const [state, setState] = useState<ITelegramContext>({
+    webApp: null,
+    isReady: false,
+    user: null,
+    theme: null,
+  });
+
+  // Стейт для визуального мока MainButton (только для dev)
+  const [mockMainButton, setMockMainButton] = useState<{
+    visible: boolean;
+    text: string;
+    onClick: (() => void) | null;
+  }>({
+    visible: false,
+    text: 'Continue',
+    onClick: null,
+  });
 
   useEffect(() => {
-    initTelegramMock();
+    // 1. Инициализация мока
+    if (
+      typeof window !== 'undefined' &&
+      process.env.NODE_ENV === 'development' &&
+      !window.Telegram
+    ) {
+      console.log('🤖 [DEV] Initializing Telegram WebApp Mock...');
+      initTelegramMock(); // Передаем сеттер, если хотим обновлять UI мока
+    }
 
-    if (typeof window !== undefined && window.Telegram?.WebApp) {
-      const tg = window.Telegram?.WebApp;
+    // 2. Инициализация реального SDK (или мока, если он создался выше)
+    if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
+      const tg = window.Telegram.WebApp;
 
       tg.ready();
       tg.expand();
       tg.enableClosingConfirmation();
 
-      setWebApp(tg);
-      setIsReady(true);
+      setState({
+        webApp: tg,
+        isReady: true,
+        user: tg.initDataUnsafe?.user || null,
+        theme: tg.themeParams || null,
+      });
 
-      applyThemeCSS(tg.themeParams);
+      // Применяем тему к CSS
+      if (tg.themeParams) {
+        const root = document.documentElement;
+        Object.entries(tg.themeParams).forEach(([key, value]) => {
+          root.style.setProperty(`--tg-theme-${key}`, value as string);
+        });
+      }
     } else {
-      setIsReady(true);
+      setState(prev => ({ ...prev, isReady: true }));
     }
   }, []);
 
-  const applyThemeCSS = (themeParams: ThemeParams) => {
-    if (!themeParams) return;
-    const root = document.documentElement;
-    Object.entries(themeParams).forEach(([key, value]) => {
-      root.style.setProperty(`--tg-theme-${key}`, value);
-    })
-  }
-
-  const user = webApp?.initDataUnsafe?.user || null;
-  const theme = webApp?.themeParams || null;
-
   return (
-    <TelegramContext.Provider value={{ webApp, isReady, user, theme }}>
+    <TelegramContext.Provider value={state}>
       {children}
-    </TelegramContext.Provider>
-  )
-}
 
-export const useTelegram = () => {
-  const context = useContext(TelegramContext);
-  if (!context) {
-    throw new Error('useTelegram must be used withinn TelegramProvider');
-  }
-  return context;
+      {/* Визуальный мок MainButton (только в dev) */}
+      {process.env.NODE_ENV === 'development' && mockMainButton.visible && (
+        <button
+          onClick={() => {
+            if (mockMainButton.onClick) mockMainButton.onClick();
+            setMockMainButton(prev => ({ ...prev, visible: false }));
+          }}
+          className="fixed bottom-0 left-0 right-0 w-full py-4 font-bold text-lg text-[var(--tg-theme-button-text-color)] bg-[var(--tg-theme-button-color)] active:opacity-80 transition-opacity z-50 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]"
+        >
+          {mockMainButton.text || 'Continue'}
+        </button>
+      )}
+    </TelegramContext.Provider>
+  );
 }

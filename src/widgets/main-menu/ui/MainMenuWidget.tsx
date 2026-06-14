@@ -1,7 +1,7 @@
 "use client";
 
-import { useTelegram } from "@/app";
 import { useGameSessionStore } from "@/entities/game-session";
+import { useTelegram } from "@/shared";
 
 
 export function MainMenuWidget() {
