@@ -9,6 +9,8 @@ import { useGameEngine } from '../hooks/useGameEngine';
 export function GameCanvasWidget() {
   const containerRef = useRef<HTMLDivElement>(null);
   const appRef = useRef<PIXI.Application | null>(null);
+  const isInitializedRef = useRef(false);
+  const isMountedRef = useRef(true);
   const { webApp } = useTelegram();
   const startGame = useGameSessionStore((state) => state.startGame);
   const [isAppReady, setIsAppReady] = useState(false);
@@ -20,9 +22,27 @@ export function GameCanvasWidget() {
   });
 
   useEffect(() => {
+    isMountedRef.current = true;
+
     if (!containerRef.current) return;
 
-    // 1. Очищаем контейнер от старых канвасов (защита от дублей)
+    // Проверка поддержки WebGL в PIXI v8
+    const isWebGLSupported = (): boolean => {
+      try {
+        const canvas = document.createElement('canvas');
+        return !!(canvas.getContext('webgl') || canvas.getContext('webgl2'));
+      } catch (e) {
+        return false;
+      }
+    };
+
+    if (!isWebGLSupported()) {
+      console.error('WebGL is not supported in this browser');
+      // TODO: показывать сообщение пользователю
+      return;
+    }
+
+    // Очищаем контейнер
     while (containerRef.current.firstChild) {
       containerRef.current.removeChild(containerRef.current.firstChild);
     }
@@ -30,77 +50,83 @@ export function GameCanvasWidget() {
     const app = new PIXI.Application();
     appRef.current = app;
 
-    // Инициализируем с размерами окна
+    let cancelled = false;
+
     app
       .init({
         background: '#1c1c1e',
         antialias: true,
         resolution: window.devicePixelRatio || 1,
         autoDensity: true,
-        width: window.innerWidth,
-        height: window.innerHeight,
+        resizeTo: containerRef.current, // Автоматический ресайз
       })
       .then(() => {
-        if (!containerRef.current || !appRef.current) return;
+        if (cancelled || !isMountedRef.current || !containerRef.current) {
+          try {
+            app.destroy(true, { children: true, texture: true });
+          } catch (e) {
+            console.warn('Cleanup after unmount:', e);
+          }
+          return;
+        }
+
+        isInitializedRef.current = true;
 
         containerRef.current.appendChild(app.canvas);
 
-        // Принудительно растягиваем канвас через CSS
         app.canvas.style.width = '100%';
         app.canvas.style.height = '100%';
         app.canvas.style.display = 'block';
 
         setIsAppReady(true);
         startGame();
+      })
+      .catch((error) => {
+        console.error('Pixi initialization failed:', error);
+        appRef.current = null;
+        isInitializedRef.current = false;
       });
 
-    const handleResize = () => {
-      if (appRef.current && containerRef.current) {
-        appRef.current.renderer.resize(
-          containerRef.current.clientWidth,
-          containerRef.current.clientHeight
-        );
-      }
-    };
-
-    window.addEventListener('resize', handleResize);
-
     return () => {
-      window.removeEventListener('resize', handleResize);
+      cancelled = true;
+      isMountedRef.current = false;
 
       const currentApp = appRef.current;
       appRef.current = null;
       setIsAppReady(false);
 
-      if (currentApp) {
-        // 2. Останавливаем тикер
-        try {
-          currentApp.ticker.stop();
-        } catch (e) {
-          /* ignore */
-        }
+      if (currentApp && isInitializedRef.current) {
+        isInitializedRef.current = false;
 
-        // 3. ВАЖНО: Сохраняем ссылку на canvas ДО уничтожения приложения
-        const canvas = currentApp.canvas;
-
+        // Останавливаем тикер
         try {
-          // 4. Удаляем канвас из DOM вручную
-          if (canvas && canvas.parentNode) {
-            canvas.parentNode.removeChild(canvas);
+          if (currentApp.ticker) {
+            currentApp.ticker.stop();
           }
         } catch (e) {
-          /* ignore */
+          console.warn('Ticker stop warning:', e);
         }
 
-        // 5. Уничтожаем приложение с задержкой
-        setTimeout(() => {
-          try {
-            // Передаем false, так как canvas мы уже удалили сами
-            currentApp.destroy(false, { children: true, texture: true });
-          } catch (e) {
-            console.warn('Pixi destroy warning:', e);
+        // Удаляем canvas из DOM
+        try {
+          if (currentApp.canvas?.parentNode) {
+            currentApp.canvas.parentNode.removeChild(currentApp.canvas);
           }
-        }, 50);
+        } catch (e) {
+          console.warn('Canvas removal warning:', e);
+        }
+
+        // Уничтожаем приложение
+        try {
+          currentApp.destroy(false, {
+            children: true,
+            texture: true,
+          });
+        } catch (e) {
+          console.warn('Destroy warning:', e);
+        }
+      } else if (currentApp && !isInitializedRef.current) {
+        console.log('App was not initialized, skipping cleanup');
       }
     };
   }, []);
@@ -108,7 +134,6 @@ export function GameCanvasWidget() {
   return (
     <div
       ref={containerRef}
-      // 6. Используем fixed, чтобы перекрыть весь экран и убрать скролл
       className="fixed inset-0 z-50 h-screen w-screen touch-none overflow-hidden"
       style={{ backgroundColor: 'var(--tg-theme-bg-color, #1c1c1e)' }}
     />
