@@ -1,13 +1,20 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useGameSessionStore } from "@/entities/game-session";
 import { useTelegram } from "@/shared";
 
 
 export function MainMenuWidget() {
+  const rouyter = useRouter();
+
   const { isReady, user, webApp } = useTelegram();
-  const setScreen = useGameSessionStore((state) => state.setScreen);
   const score = useGameSessionStore((state) => state.score);
+
+  const handleStartGame = () => {
+    webApp?.HapticFeedback.impactOccurred('medium');
+    rouyter.push('/game');
+  }
 
   // Показываем лоадер, пока Telegram SDK не инициализирован
   if (!isReady) {
@@ -41,11 +48,7 @@ export function MainMenuWidget() {
 
       {/* Кнопка действия */}
       <button
-        onClick={() => {
-          // Тестируем haptic feedback из нашего мока/реального SDK
-          webApp?.HapticFeedback.impactOccurred('medium');
-          setScreen('playing');
-        }}
+        onClick={handleStartGame}
         className="w-full max-w-xs py-4 px-6 rounded-xl font-bold text-lg text-[var(--tg-theme-button-text-color)] bg-[var(--tg-theme-button-color)] active:opacity-80 transition-all shadow-lg"
       >
         Играть 🎮

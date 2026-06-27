@@ -1,57 +1,110 @@
-'use client';
+"use client";
 
 import { useEffect, useRef, useState } from "react";
 import * as PIXI from 'pixi.js';
+import { useGameSessionStore } from "@/entities/game-session";
+import { useTelegram } from "@/shared";
+import { useGameEngine } from "../hooks/useGameEngine";
 
 export function GameCanvasWidget() {
   const containerRef = useRef<HTMLDivElement>(null);
-  const appRef = useRef<PIXI.Application>(null);
-  const [isInitialized, setIsInitialized] = useState(false);
+  const appRef = useRef<PIXI.Application | null>(null);
+  const { webApp } = useTelegram();
+  const startGame = useGameSessionStore((state) => state.startGame);
+  const [isAppReady, setIsAppReady] = useState(false);
+
+  useGameEngine({
+    appRef,
+    isAppReady,
+    haptics: webApp?.HapticFeedback || null
+  });
 
   useEffect(() => {
-    if (!containerRef.current || appRef.current) return;
+    if (!containerRef.current) return;
+
+    // 1. Очищаем контейнер от старых канвасов (защита от дублей)
+    while (containerRef.current.firstChild) {
+      containerRef.current.removeChild(containerRef.current.firstChild);
+    }
 
     const app = new PIXI.Application();
     appRef.current = app;
 
+    // Инициализируем с размерами окна
     app.init({
-      background: '#1c1c1c',
-      resizeTo: containerRef.current,
+      background: '#1c1c1e',
       antialias: true,
-      resolution: window.devicePixelRatio,
+      resolution: window.devicePixelRatio || 1,
       autoDensity: true,
+      width: window.innerWidth,
+      height: window.innerHeight,
     }).then(() => {
-      if (!containerRef.current) return;
+      if (!containerRef.current || !appRef.current) return;
 
       containerRef.current.appendChild(app.canvas);
-      setIsInitialized(true);
 
-      // TODO: game loop here
+      // Принудительно растягиваем канвас через CSS
+      app.canvas.style.width = '100%';
+      app.canvas.style.height = '100%';
+      app.canvas.style.display = 'block';
 
-      const graphics = new PIXI.Graphics();
-      graphics.circle(app.screen.width / 2, app.screen.height / 2, 50);
-      graphics.fill(0x3390ec);
-      app.stage.addChild(graphics);
+      setIsAppReady(true);
+      startGame();
     });
 
-    return () => {
-      if (appRef.current) {
-        appRef.current.destroy(true, { children: true, texture: true });
-        appRef.current = null;
-        setIsInitialized(false);
+    const handleResize = () => {
+      if (appRef.current && containerRef.current) {
+        appRef.current.renderer.resize(
+          containerRef.current.clientWidth,
+          containerRef.current.clientHeight
+        );
       }
-    }
+    };
+
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+
+      const currentApp = appRef.current;
+      appRef.current = null;
+      setIsAppReady(false);
+
+      if (currentApp) {
+        // 2. Останавливаем тикер
+        try {
+          currentApp.ticker.stop();
+        } catch (e) { /* ignore */ }
+
+        // 3. ВАЖНО: Сохраняем ссылку на canvas ДО уничтожения приложения
+        const canvas = currentApp.canvas;
+
+        try {
+          // 4. Удаляем канвас из DOM вручную
+          if (canvas && canvas.parentNode) {
+            canvas.parentNode.removeChild(canvas);
+          }
+        } catch (e) { /* ignore */ }
+
+        // 5. Уничтожаем приложение с задержкой
+        setTimeout(() => {
+          try {
+            // Передаем false, так как canvas мы уже удалили сами
+            currentApp.destroy(false, { children: true, texture: true });
+          } catch (e) {
+            console.warn("Pixi destroy warning:", e);
+          }
+        }, 50);
+      }
+    };
   }, []);
 
   return (
     <div
       ref={containerRef}
-      className="absolute w-full h-full touch-none"
+      // 6. Используем fixed, чтобы перекрыть весь экран и убрать скролл
+      className="fixed inset-0 w-screen h-screen touch-none overflow-hidden z-50"
       style={{ backgroundColor: "var(--tg-theme-bg-color, #1c1c1e)" }}
-    >
-      {!isInitialized && <div className="absolute inset-0 flex items-center justify-center text-[var(--tg-theme-hint-color, #f3f3f3)]">
-        Загрузка...
-      </div>}
-    </div>
-  )
+    />
+  );
 }
