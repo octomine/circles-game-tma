@@ -134,7 +134,7 @@ export function GameCanvasWidget() {
   return (
     <div
       ref={containerRef}
-      className="fixed inset-0 z-50 h-screen w-screen touch-none overflow-hidden"
+      className="fixed inset-0 z-0 h-screen w-screen touch-none overflow-hidden"
       style={{ backgroundColor: 'var(--tg-theme-bg-color, #1c1c1e)' }}
     />
   );

@@ -74,7 +74,7 @@ export function useGameEngine({ appRef, isAppReady, haptics }: UseGameEngineProp
     const ticker = (ticker: PIXI.Ticker) => {
       if (status !== 'playing') return;
 
-      const deltaSeconds = ticker.deltaMS / 60;
+      const deltaSeconds = ticker.deltaMS / 1000;
       tickTime(deltaSeconds);
 
       if (useGameSessionStore.getState().timeToNextColor <= 0) {

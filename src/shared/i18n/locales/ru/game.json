@@ -1,7 +1,7 @@
 {
   "hud": {
     "score": "Счёт",
-    "lives": "Жизни",
+    "lives": "{count, plural, =0 {Нет жизней} one {# жизнь} few {# жизни} other {# жизней}}",
     "targetColor": "Найди цвет",
     "timeLeft": "{seconds, plural, =0 {Сейчас} one {# секунда} few {# секунды} other {# секунд}}"
   },

@@ -4,6 +4,7 @@ import { defaultLocale } from './config';
 export default getRequestConfig(async () => {
   return {
     locale: defaultLocale,
+    timeZone: 'Europe/Moscow',
     messages: {
       common: (await import(`./locales/${defaultLocale}/common.json`)).default,
       menu: (await import(`./locales/${defaultLocale}/menu.json`)).default,
