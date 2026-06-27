@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, ReactNode } from 'react';
+
 import { TelegramContext, ITelegramContext } from '@/shared/lib/telegram';
 import { initTelegramMock } from '@/shared/lib/telegram-mock';
 

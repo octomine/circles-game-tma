@@ -2,8 +2,10 @@
 
 import { useEffect, useRef, useState } from 'react';
 import * as PIXI from 'pixi.js';
+
 import { useGameSessionStore } from '@/entities/game-session';
 import { useTelegram } from '@/shared';
+
 import { useGameEngine } from '../hooks/useGameEngine';
 
 export function GameCanvasWidget() {
@@ -31,7 +33,7 @@ export function GameCanvasWidget() {
       try {
         const canvas = document.createElement('canvas');
         return !!(canvas.getContext('webgl') || canvas.getContext('webgl2'));
-      } catch (e) {
+      } catch (_e) {
         return false;
       }
     };

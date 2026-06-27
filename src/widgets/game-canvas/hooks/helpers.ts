@@ -1,6 +1,8 @@
 import * as PIXI from 'pixi.js';
-import type { GameCircle, Particle } from './types';
+
 import { GAME_CONFIG } from '@/entities/game-session';
+
+import type { GameCircle, Particle } from './types';
 
 /**
  * Возвращает круг из пула и размещает его на экране

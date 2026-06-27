@@ -1,13 +1,14 @@
 import { useEffect, useRef } from 'react';
 import * as PIXI from 'pixi.js';
+
 import { GAME_CONFIG, useGameSessionStore } from '@/entities/game-session';
+
 import type { UseGameEngineProps, GameCircle, Particle } from './types';
 import { spawnCircle, returnToPool, spawnParticles } from './helpers';
 
 export function useGameEngine({ appRef, isAppReady, haptics }: UseGameEngineProps) {
   // Селекторы стора
   const status = useGameSessionStore((state) => state.status);
-  const targetColor = useGameSessionStore((state) => state.targetColor);
   const addScore = useGameSessionStore((state) => state.addScore);
   const loseLife = useGameSessionStore((state) => state.loseLife);
   const tickTime = useGameSessionStore((state) => state.tickTime);
@@ -17,6 +18,24 @@ export function useGameEngine({ appRef, isAppReady, haptics }: UseGameEngineProp
   const circlesRef = useRef<GameCircle[]>([]);
   const particlesRef = useRef<Particle[]>([]);
   const lastSpawnTimeRef = useRef(0);
+
+  // --- Логика Клика ---
+  const handleCircleClick = (circle: GameCircle) => {
+    if (!circle.visible || !circle.isActive) return;
+
+    const targetColor = useGameSessionStore.getState().targetColor;
+
+    if (circle.colorHex === targetColor) {
+      addScore(10);
+      haptics?.impactOccurred('light');
+      spawnParticles(particlesRef.current, circle.x, circle.y, circle.colorHex);
+      returnToPool(circle);
+    } else {
+      loseLife();
+      haptics?.notificationOccurred('error');
+      returnToPool(circle);
+    }
+  };
 
   // --- Инициализация Пулов ---
   useEffect(() => {
@@ -49,24 +68,6 @@ export function useGameEngine({ appRef, isAppReady, haptics }: UseGameEngineProp
       particlesRef.current = [];
     };
   }, [isAppReady]);
-
-  // --- Логика Клика ---
-  const handleCircleClick = (circle: GameCircle) => {
-    if (!circle.visible || !circle.isActive) return;
-
-    const targetColor = useGameSessionStore.getState().targetColor;
-
-    if (circle.colorHex === targetColor) {
-      addScore(10);
-      haptics?.impactOccurred('light');
-      spawnParticles(particlesRef.current, circle.x, circle.y, circle.colorHex);
-      returnToPool(circle);
-    } else {
-      loseLife();
-      haptics?.notificationOccurred('error');
-      returnToPool(circle);
-    }
-  };
 
   // --- Игровой Цикл (Ticker) ---
   useEffect(() => {

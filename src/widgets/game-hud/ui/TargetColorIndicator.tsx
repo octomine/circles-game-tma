@@ -2,6 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
+
 import { useGameSessionStore } from '@/entities/game-session';
 import { cn } from '@/shared';
 
@@ -21,6 +22,7 @@ export function TargetColorIndicator() {
       setPrevColor(targetColor);
       return () => clearTimeout(timer);
     }
+    return;
   }, [targetColor, prevColor]);
 
   // Пульсация за 3 секунды до смены цвета

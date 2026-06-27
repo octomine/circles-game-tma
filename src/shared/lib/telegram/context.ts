@@ -1,5 +1,4 @@
 import { createContext } from 'react';
-import type { WebApp } from '@twa-dev/types';
 
 type TgWebApp = NonNullable<Window['Telegram']>['WebApp'];
 type TgUser = NonNullable<TgWebApp['initDataUnsafe']['user']>;
