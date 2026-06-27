@@ -21,13 +21,14 @@ export const useGameSessionStore = create<GameSessionState>((set, get) => ({
 
   addScore: (points) => set((state) => ({ score: state.score + points })),
 
-  loseLife: () => set((state) => {
-    const newLives = state.lives - 1;
-    if (newLives <= 0) {
-      return { lives: 0, status: 'gameover' };
-    }
-    return { lives: newLives };
-  }),
+  loseLife: () =>
+    set((state) => {
+      const newLives = state.lives - 1;
+      if (newLives <= 0) {
+        return { lives: 0, status: 'gameover' };
+      }
+      return { lives: newLives };
+    }),
 
   changeTargetColor: () => {
     const currentColor = get().targetColor;
@@ -40,23 +41,24 @@ export const useGameSessionStore = create<GameSessionState>((set, get) => ({
     });
   },
 
-  tickTime: (deltaSeconds) => set((state) => {
-    if (state.status !== 'playing') return state;
+  tickTime: (deltaSeconds) =>
+    set((state) => {
+      if (state.status !== 'playing') return state;
 
-    const newTime = state.timeToNextColor - deltaSeconds;
+      const newTime = state.timeToNextColor - deltaSeconds;
 
-    if (newTime <= 0) {
-      const available = GAME_CONFIG.COLORS.filter((c) => c !== state.targetColor);
-      const newColor = available[Math.floor(Math.random() * available.length)];
+      if (newTime <= 0) {
+        const available = GAME_CONFIG.COLORS.filter((c) => c !== state.targetColor);
+        const newColor = available[Math.floor(Math.random() * available.length)];
 
-      return {
-        timeToNextColor: GAME_CONFIG.TIME_TO_CHANGE_COLOR,
-        targetColor: newColor,
-      };
-    }
+        return {
+          timeToNextColor: GAME_CONFIG.TIME_TO_CHANGE_COLOR,
+          targetColor: newColor,
+        };
+      }
 
-    return { timeToNextColor: newTime };
-  }),
+      return { timeToNextColor: newTime };
+    }),
 
   reset: () => set(getDefaultGameData()),
 }));

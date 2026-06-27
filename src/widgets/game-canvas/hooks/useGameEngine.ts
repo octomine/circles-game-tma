@@ -43,8 +43,8 @@ export function useGameEngine({ appRef, isAppReady, haptics }: UseGameEngineProp
     }
 
     return () => {
-      circlesRef.current.forEach(c => c.destroy());
-      particlesRef.current.forEach(p => p.destroy());
+      circlesRef.current.forEach((c) => c.destroy());
+      particlesRef.current.forEach((p) => p.destroy());
       circlesRef.current = [];
       particlesRef.current = [];
     };
@@ -88,7 +88,7 @@ export function useGameEngine({ appRef, isAppReady, haptics }: UseGameEngineProp
       }
 
       // Анимация частиц
-      particlesRef.current.forEach(p => {
+      particlesRef.current.forEach((p) => {
         if (p.visible) {
           const particle = p as Particle;
           particle.x += particle.velocity.x;
@@ -101,6 +101,8 @@ export function useGameEngine({ appRef, isAppReady, haptics }: UseGameEngineProp
     };
 
     app.ticker.add(ticker);
-    return () => { app.ticker.remove(ticker); };
+    return () => {
+      app.ticker.remove(ticker);
+    };
   }, [appRef, status, tickTime, changeTargetColor, targetColor]);
 }

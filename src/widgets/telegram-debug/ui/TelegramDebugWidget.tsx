@@ -1,6 +1,6 @@
-"use client";
+'use client';
 
-import { useTelegram } from "@/app/providers/TelegramProvider";
+import { useTelegram } from '@/app/providers/TelegramProvider';
 
 export function TelegramDebugWidget() {
   const { isReady, user, theme, webApp } = useTelegram();
@@ -9,7 +9,7 @@ export function TelegramDebugWidget() {
   if (!isReady) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-[var(--tg-theme-bg-color)]">
-        <p className="text-[var(--tg-theme-hint-color)] animate-pulse">
+        <p className="animate-pulse text-[var(--tg-theme-hint-color)]">
           Инициализация Telegram SDK...
         </p>
       </div>
@@ -27,7 +27,7 @@ export function TelegramDebugWidget() {
   // 3. Функция для теста MainButton (нативная кнопка Telegram)
   const testMainButton = () => {
     if (webApp?.MainButton) {
-      webApp.MainButton.setText("Тестовая кнопка");
+      webApp.MainButton.setText('Тестовая кнопка');
       webApp.MainButton.show();
       webApp.MainButton.onClick(() => {
         console.log('✅ MainButton clicked!');
@@ -38,34 +38,34 @@ export function TelegramDebugWidget() {
   };
 
   return (
-    <div className="min-h-screen w-full bg-[var(--tg-theme-bg-color)] text-[var(--tg-theme-text-color)] p-6 font-mono text-sm">
-      <h1 className="text-2xl font-bold mb-6 text-[var(--tg-theme-button-color)]">
+    <div className="min-h-screen w-full bg-[var(--tg-theme-bg-color)] p-6 font-mono text-sm text-[var(--tg-theme-text-color)]">
+      <h1 className="mb-6 text-2xl font-bold text-[var(--tg-theme-button-color)]">
         🛠 Telegram Provider Check
       </h1>
 
       {/* Блок статуса */}
-      <div className="mb-6 p-4 rounded-lg bg-[var(--tg-theme-secondary-bg-color)] border border-[var(--tg-theme-hint-color)]/20">
-        <p className="font-bold text-green-500 mb-2">✅ Статус: SDK Ready</p>
+      <div className="mb-6 rounded-lg border border-[var(--tg-theme-hint-color)]/20 bg-[var(--tg-theme-secondary-bg-color)] p-4">
+        <p className="mb-2 font-bold text-green-500">✅ Статус: SDK Ready</p>
         <p>Platform: {webApp?.platform || 'Unknown'}</p>
         <p>Version: {webApp?.version || 'Unknown'}</p>
       </div>
 
       {/* Блок данных пользователя */}
       <div className="mb-6">
-        <h2 className="text-lg font-semibold mb-2 border-b border-[var(--tg-theme-hint-color)]/30 pb-1">
+        <h2 className="mb-2 border-b border-[var(--tg-theme-hint-color)]/30 pb-1 text-lg font-semibold">
           👤 User Data (initDataUnsafe)
         </h2>
-        <pre className="bg-[var(--tg-theme-secondary-bg-color)] p-3 rounded-lg overflow-x-auto text-xs">
+        <pre className="overflow-x-auto rounded-lg bg-[var(--tg-theme-secondary-bg-color)] p-3 text-xs">
           {JSON.stringify(user, null, 2)}
         </pre>
       </div>
 
       {/* Блок темы */}
       <div className="mb-6">
-        <h2 className="text-lg font-semibold mb-2 border-b border-[var(--tg-theme-hint-color)]/30 pb-1">
+        <h2 className="mb-2 border-b border-[var(--tg-theme-hint-color)]/30 pb-1 text-lg font-semibold">
           🎨 Theme Params
         </h2>
-        <pre className="bg-[var(--tg-theme-secondary-bg-color)] p-3 rounded-lg overflow-x-auto text-xs">
+        <pre className="overflow-x-auto rounded-lg bg-[var(--tg-theme-secondary-bg-color)] p-3 text-xs">
           {JSON.stringify(theme, null, 2)}
         </pre>
       </div>
@@ -74,14 +74,14 @@ export function TelegramDebugWidget() {
       <div className="flex flex-col gap-3">
         <button
           onClick={testHaptic}
-          className="w-full py-3 px-4 rounded-lg font-bold bg-[var(--tg-theme-button-color)] text-[var(--tg-theme-button-text-color)] active:opacity-70 transition-opacity"
+          className="w-full rounded-lg bg-[var(--tg-theme-button-color)] px-4 py-3 font-bold text-[var(--tg-theme-button-text-color)] transition-opacity active:opacity-70"
         >
           📳 Тест Haptic Feedback (Medium)
         </button>
 
         <button
           onClick={testMainButton}
-          className="w-full py-3 px-4 rounded-lg font-bold bg-[var(--tg-theme-secondary-bg-color)] text-[var(--tg-theme-text-color)] border border-[var(--tg-theme-hint-color)] active:opacity-70 transition-opacity"
+          className="w-full rounded-lg border border-[var(--tg-theme-hint-color)] bg-[var(--tg-theme-secondary-bg-color)] px-4 py-3 font-bold text-[var(--tg-theme-text-color)] transition-opacity active:opacity-70"
         >
           🔘 Показать нативную MainButton
         </button>

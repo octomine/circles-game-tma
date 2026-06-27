@@ -1,4 +1,4 @@
-import { MainMenuWidget } from "@/widgets/main-menu";
+import { MainMenuWidget } from '@/widgets/main-menu';
 
 export default function Home() {
   return <MainMenuWidget />;

@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import { useEffect, useState, ReactNode } from 'react';
 import { TelegramContext, ITelegramContext } from '@/shared/lib/telegram';
@@ -57,7 +57,7 @@ export function TelegramProvider({ children }: { children: ReactNode }) {
         });
       }
     } else {
-      setState(prev => ({ ...prev, isReady: true }));
+      setState((prev) => ({ ...prev, isReady: true }));
     }
   }, []);
 
@@ -70,9 +70,9 @@ export function TelegramProvider({ children }: { children: ReactNode }) {
         <button
           onClick={() => {
             if (mockMainButton.onClick) mockMainButton.onClick();
-            setMockMainButton(prev => ({ ...prev, visible: false }));
+            setMockMainButton((prev) => ({ ...prev, visible: false }));
           }}
-          className="fixed bottom-0 left-0 right-0 w-full py-4 font-bold text-lg text-[var(--tg-theme-button-text-color)] bg-[var(--tg-theme-button-color)] active:opacity-80 transition-opacity z-50 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]"
+          className="fixed right-0 bottom-0 left-0 z-50 w-full bg-[var(--tg-theme-button-color)] py-4 text-lg font-bold text-[var(--tg-theme-button-text-color)] shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] transition-opacity active:opacity-80"
         >
           {mockMainButton.text || 'Continue'}
         </button>
