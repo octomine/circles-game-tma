@@ -1,0 +1,20 @@
+{
+  "hud": {
+    "score": "Счёт",
+    "lives": "Жизни",
+    "targetColor": "Найди цвет",
+    "timeLeft": "{seconds, plural, =0 {Сейчас} one {# секунда} few {# секунды} other {# секунд}}"
+  },
+  "gameOver": {
+    "title": "Игра окончена",
+    "finalScore": "Ваш счёт: {score}",
+    "bestScore": "Лучший результат: {score}"
+  },
+  "colors": {
+    "red": "Красный",
+    "green": "Зелёный",
+    "blue": "Синий",
+    "yellow": "Жёлтый",
+    "purple": "Фиолетовый"
+  }
+}
