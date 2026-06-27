@@ -2,6 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
+
 import { useGameSessionStore } from '@/entities/game-session';
 import { cn } from '@/shared';
 
@@ -20,6 +21,7 @@ export function LivesDisplay() {
       return () => clearTimeout(timer);
     }
     setPrevLives(lives);
+    return;
   }, [lives, prevLives]);
 
   // Максимальное количество жизней (из конфига)

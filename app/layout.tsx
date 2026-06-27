@@ -1,9 +1,9 @@
 import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import '../src/app/styles/globals.css';
+import { getLocale, getMessages } from 'next-intl/server';
 
 import { IntlProvider, TelegramProvider } from '@/app/providers';
-import { getLocale, getMessages } from 'next-intl/server';
 // import { TelegramDebugWidget } from '@/widgets/telegram-debug';
 
 const geistSans = Geist({

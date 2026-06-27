@@ -2,6 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
+
 import { useGameSessionStore } from '@/entities/game-session';
 import { cn } from '@/shared';
 
@@ -17,6 +18,7 @@ export function ScoreDisplay() {
       const timer = setTimeout(() => setIsAnimating(false), 300);
       return () => clearTimeout(timer);
     }
+    return;
   }, [score]);
 
   return (

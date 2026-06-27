@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
+
 import { useGameSessionStore } from '@/entities/game-session';
 import { cn, useTelegram } from '@/shared';
 

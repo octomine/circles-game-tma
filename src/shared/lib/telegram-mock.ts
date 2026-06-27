@@ -1,6 +1,8 @@
+import { WebApp } from '@twa-dev/types';
+
 export const initTelegramMock = () => {
   if (typeof window === 'undefined') return;
-  if ((window as any).Telegram?.WebApp) return;
+  if (window.Telegram?.WebApp) return;
 
   console.log('🤖 [DEV] Initializing Telegram WebApp Mock...');
 
@@ -48,7 +50,7 @@ export const initTelegramMock = () => {
         mockWebApp.MainButton.isVisible = false;
         console.log('[Mock] MainButton.hide()');
       },
-      onClick: (cb: () => void) => {
+      onClick: (_cb: () => void) => {
         console.log('[Mock] MainButton.onClick registered');
       },
     },
@@ -62,11 +64,11 @@ export const initTelegramMock = () => {
         mockWebApp.BackButton.isVisible = false;
         console.log('[Mock] BackButton.hide()');
       },
-      onClick: (cb: () => void) => {
+      onClick: (_cb: () => void) => {
         console.log('[Mock] BackButton.onClick registered');
       },
     },
   };
 
-  (window as any).Telegram = { WebApp: mockWebApp };
+  window.Telegram = { WebApp: mockWebApp as unknown as WebApp };
 };

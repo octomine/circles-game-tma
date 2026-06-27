@@ -1,6 +1,8 @@
 import { create } from 'zustand';
+
 import type { GameSessionState } from '../types/gameSessionStore.types';
 import { GAME_CONFIG } from '../config/constants';
+
 import { getDefaultGameData } from './defaults';
 
 export const useGameSessionStore = create<GameSessionState>((set, get) => ({

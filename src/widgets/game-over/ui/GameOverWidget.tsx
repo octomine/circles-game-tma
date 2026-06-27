@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
+
 import { useGameSessionStore } from '@/entities/game-session';
 import { cn, updateBestScore, useTelegram } from '@/shared';
 

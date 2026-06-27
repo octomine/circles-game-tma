@@ -1,6 +1,6 @@
 'use client';
 
-import { useTelegram } from '@/app/providers/TelegramProvider';
+import { useTelegram } from '@/shared';
 
 export function TelegramDebugWidget() {
   const { isReady, user, theme, webApp } = useTelegram();

@@ -2,6 +2,7 @@
 
 import { useGameSessionStore } from '@/entities/game-session';
 import { cn } from '@/shared';
+
 import { ScoreDisplay } from './ScoreDisplay';
 import { LivesDisplay } from './LivesDisplay';
 import { TargetColorIndicator } from './TargetColorIndicator';

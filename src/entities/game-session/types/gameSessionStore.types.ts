@@ -1,5 +1,3 @@
-import type PIXI from 'pixi.js';
-
 export type GameStatus = 'menu' | 'playing' | 'gameover';
 
 // Строгий тип для HEX-цветов (например, '#FF5733')
