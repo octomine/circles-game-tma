@@ -7,8 +7,9 @@
   },
   "gameOver": {
     "title": "Игра окончена",
-    "finalScore": "Ваш счёт: {score}",
-    "bestScore": "Лучший результат: {score}"
+    "finalScoreLabel": "Ваш счёт",
+    "bestScoreLabel": "Лучший результат",
+    "newRecord": "🏆 Новый рекорд!"
   },
   "colors": {
     "red": "Красный",
