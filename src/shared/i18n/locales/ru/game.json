@@ -1,0 +1,21 @@
+{
+  "hud": {
+    "score": "Счёт",
+    "lives": "{count, plural, =0 {Нет жизней} one {# жизнь} few {# жизни} other {# жизней}}",
+    "targetColor": "Найди цвет",
+    "timeLeft": "{seconds, plural, =0 {Сейчас} one {# секунда} few {# секунды} other {# секунд}}"
+  },
+  "gameOver": {
+    "title": "Игра окончена",
+    "finalScoreLabel": "Ваш счёт",
+    "bestScoreLabel": "Лучший результат",
+    "newRecord": "🏆 Новый рекорд!"
+  },
+  "colors": {
+    "red": "Красный",
+    "green": "Зелёный",
+    "blue": "Синий",
+    "yellow": "Жёлтый",
+    "purple": "Фиолетовый"
+  }
+}
