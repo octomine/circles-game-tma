@@ -21,7 +21,7 @@ export function useGameEngine({ appRef, isAppReady, haptics }: UseGameEngineProp
   // --- Инициализация Пулов ---
   useEffect(() => {
     const app = appRef.current;
-    if (!app) return;
+    if (!app || !isAppReady) return;
 
     // Пул кругов
     for (let i = 0; i < GAME_CONFIG.MAX_CIRCLES_ON_SCREEN; i++) {
@@ -54,6 +54,8 @@ export function useGameEngine({ appRef, isAppReady, haptics }: UseGameEngineProp
   const handleCircleClick = (circle: GameCircle) => {
     if (!circle.visible || !circle.isActive) return;
 
+    const targetColor = useGameSessionStore.getState().targetColor;
+
     if (circle.colorHex === targetColor) {
       addScore(10);
       haptics?.impactOccurred('light');
@@ -69,10 +71,12 @@ export function useGameEngine({ appRef, isAppReady, haptics }: UseGameEngineProp
   // --- Игровой Цикл (Ticker) ---
   useEffect(() => {
     const app = appRef.current;
-    if (!app) return;
-
+    if (!app || !isAppReady) return;
+    console.log(tickTime);
     const ticker = (ticker: PIXI.Ticker) => {
-      if (status !== 'playing') return;
+      const currentStatus = useGameSessionStore.getState().status;
+
+      if (currentStatus !== 'playing') return;
 
       const deltaSeconds = ticker.deltaMS / 1000;
       tickTime(deltaSeconds);
@@ -104,5 +108,5 @@ export function useGameEngine({ appRef, isAppReady, haptics }: UseGameEngineProp
     return () => {
       app.ticker.remove(ticker);
     };
-  }, [appRef, status, tickTime, changeTargetColor, targetColor]);
+  }, [appRef, tickTime, changeTargetColor, status]);
 }

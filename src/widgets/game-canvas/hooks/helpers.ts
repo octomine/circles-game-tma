@@ -18,9 +18,11 @@ export const spawnCircle = (pool: GameCircle[], app: PIXI.Application): void => 
     Math.random() * (app.screen.height - GAME_CONFIG.CIRCLE_RADIUS * 2) + GAME_CONFIG.CIRCLE_RADIUS;
 
   freeCircle.clear();
-  freeCircle.circle(x, y, GAME_CONFIG.CIRCLE_RADIUS);
+  freeCircle.circle(0, 0, GAME_CONFIG.CIRCLE_RADIUS);
   freeCircle.fill(color);
 
+  freeCircle.x = x;
+  freeCircle.y = y;
   freeCircle.colorHex = color;
   freeCircle.isActive = true;
   freeCircle.visible = true;
