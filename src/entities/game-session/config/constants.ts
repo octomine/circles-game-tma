@@ -19,4 +19,5 @@ export const GAME_CONFIG = {
   MAX_PARTICLES: 50,
   PARTICLE_SIZE: 5,
   PARTICLE_LIFE_SEC: 1.0,
+  CIRCLE_LIFETIME_SEC: 8.0, // Время жизни круга до исчезновения
 } as const;

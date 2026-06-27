@@ -26,6 +26,11 @@ export const spawnCircle = (pool: GameCircle[], app: PIXI.Application): void => 
   freeCircle.colorHex = color;
   freeCircle.isActive = true;
   freeCircle.visible = true;
+  freeCircle.alpha = 1;
+
+  // ✅ Задаём время жизни
+  freeCircle.lifetime = GAME_CONFIG.CIRCLE_LIFETIME_SEC;
+  freeCircle.age = 0;
 };
 
 /**
@@ -33,8 +38,10 @@ export const spawnCircle = (pool: GameCircle[], app: PIXI.Application): void => 
  */
 export const returnToPool = (obj: GameCircle | Particle): void => {
   obj.visible = false;
+  obj.alpha = 1;
   if ('isActive' in obj) {
     (obj as GameCircle).isActive = false;
+    (obj as GameCircle).age = 0;
   }
 };
 

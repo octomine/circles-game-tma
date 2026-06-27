@@ -16,6 +16,8 @@ export interface UseGameEngineProps {
 export interface GameCircle extends PIXI.Graphics {
   colorHex: string;
   isActive: boolean;
+  lifetime: number; // Максимальное время жизни
+  age: number; // Текущий возраст
 }
 
 export interface Particle extends PIXI.Graphics {

@@ -72,7 +72,7 @@ export function useGameEngine({ appRef, isAppReady, haptics }: UseGameEngineProp
   useEffect(() => {
     const app = appRef.current;
     if (!app || !isAppReady) return;
-    console.log(tickTime);
+
     const ticker = (ticker: PIXI.Ticker) => {
       const currentStatus = useGameSessionStore.getState().status;
 
@@ -90,6 +90,25 @@ export function useGameEngine({ appRef, isAppReady, haptics }: UseGameEngineProp
         spawnCircle(circlesRef.current, app);
         lastSpawnTimeRef.current = now;
       }
+
+      // ✅ Обновляем возраст кругов и скрываем старые
+      circlesRef.current.forEach((circle) => {
+        if (circle.visible && circle.isActive) {
+          circle.age += deltaSeconds;
+
+          // Плавное исчезновение в последние 2 секунды
+          const fadeStart = circle.lifetime - 2;
+          if (circle.age >= fadeStart) {
+            const fadeProgress = (circle.age - fadeStart) / 2;
+            circle.alpha = Math.max(0, 1 - fadeProgress);
+          }
+
+          // Круг исчезает, когда время жизни истекло
+          if (circle.age >= circle.lifetime) {
+            returnToPool(circle);
+          }
+        }
+      });
 
       // Анимация частиц
       particlesRef.current.forEach((p) => {

@@ -27,14 +27,3 @@ export interface GameSessionActions {
 
 // Итоговый тип стора = данные + действия
 export type GameSessionState = GameSessionData & GameSessionActions;
-
-// Расширяем PIXI.Graphics, чтобы хранить там наши кастомные данные
-export interface GameCircle extends PIXI.Graphics {
-  colorHex: string;
-  isActive: boolean;
-}
-
-export interface Particle extends PIXI.Graphics {
-  velocity: { x: number; y: number };
-  life: number;
-}
