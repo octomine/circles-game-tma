@@ -13,7 +13,7 @@
 
 🔗 **Онлайн:** [circles-game-tma.vercel.app](https://circles-game-tma.vercel.app)
 
-Откройте ссылку в Telegram через [@YourBot](https://t.me/YourBot) или просто в мобильном браузере.
+Откройте ссылку в Telegram через [@color_clash_game_bot](https://t.me/color_clash_game_bot) или просто в мобильном браузере.
 
 ---
 
