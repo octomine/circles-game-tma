@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from 'next/font/google';
 import '../src/app/styles/globals.css';
 import { getLocale, getMessages } from 'next-intl/server';
 import { Analytics } from '@vercel/analytics/react';
+import { SpeedInsights } from '@vercel/speed-insights/next';
 
 import { IntlProvider, TelegramProvider } from '@/app/providers';
 
@@ -36,6 +37,7 @@ export default async function RootLayout({
           <TelegramProvider>{children}</TelegramProvider>
         </IntlProvider>
         <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );
