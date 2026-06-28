@@ -2,9 +2,9 @@ import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import '../src/app/styles/globals.css';
 import { getLocale, getMessages } from 'next-intl/server';
+import { Analytics } from '@vercel/analytics/react';
 
 import { IntlProvider, TelegramProvider } from '@/app/providers';
-// import { TelegramDebugWidget } from '@/widgets/telegram-debug';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -33,11 +33,9 @@ export default async function RootLayout({
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col">
         <IntlProvider messages={messages} locale={locale}>
-          <TelegramProvider>
-            {children}
-            {/* <TelegramDebugWidget /> */}
-          </TelegramProvider>
+          <TelegramProvider>{children}</TelegramProvider>
         </IntlProvider>
+        <Analytics />
       </body>
     </html>
   );
