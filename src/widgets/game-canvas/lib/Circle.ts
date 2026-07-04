@@ -47,12 +47,12 @@ export class Circle extends GameObject<CircleSpawnParams> {
     this.fadeDuration = Math.min(2, params.lifetime * 0.25);
     this.age = 0;
 
+    // Активируем
+    this.activate();
+
     // Делаем кликабельным
     this.eventMode = 'static';
     this.cursor = 'pointer';
-
-    // Активируем
-    this.activate();
   }
 
   update(dt: number): void {

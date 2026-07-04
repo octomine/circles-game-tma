@@ -1,64 +1,114 @@
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import * as PIXI from 'pixi.js';
 
 import { GAME_CONFIG, useGameSessionStore } from '@/entities/game-session';
 
-import type { UseGameEngineProps, GameCircle, Particle } from './types';
-import { spawnCircle, returnToPool, spawnParticles } from './helpers';
+import { Circle, Particle } from '../lib';
+
+import type { UseGameEngineProps } from './types';
 
 export function useGameEngine({ appRef, isAppReady, haptics }: UseGameEngineProps) {
   // Селекторы стора
-  const status = useGameSessionStore((state) => state.status);
   const addScore = useGameSessionStore((state) => state.addScore);
   const loseLife = useGameSessionStore((state) => state.loseLife);
   const tickTime = useGameSessionStore((state) => state.tickTime);
   const changeTargetColor = useGameSessionStore((state) => state.changeTargetColor);
 
-  // Рефы
-  const circlesRef = useRef<GameCircle[]>([]);
+  // Пулы объектов
+  const circlesRef = useRef<Circle[]>([]);
   const particlesRef = useRef<Particle[]>([]);
   const lastSpawnTimeRef = useRef(0);
 
-  // --- Логика Клика ---
-  const handleCircleClick = (circle: GameCircle) => {
-    if (!circle.visible || !circle.isActive) return;
-
-    const targetColor = useGameSessionStore.getState().targetColor;
-
-    if (circle.colorHex === targetColor) {
-      addScore(10);
-      haptics?.impactOccurred('light');
-      spawnParticles(particlesRef.current, circle.x, circle.y, circle.colorHex);
-      returnToPool(circle);
-    } else {
-      loseLife();
-      haptics?.notificationOccurred('error');
-      returnToPool(circle);
+  // --- Спавн частиц ---
+  const spawnParticles = useCallback((x: number, y: number, color: string) => {
+    let count = 0;
+    for (const particle of particlesRef.current) {
+      if (!particle.isActive && count < 8) {
+        particle.spawn({
+          x,
+          y,
+          color,
+          velocity: {
+            x: (Math.random() - 0.5) * 10,
+            y: (Math.random() - 0.5) * 10,
+          },
+          life: GAME_CONFIG.PARTICLE_LIFE_SEC,
+        });
+        count++;
+      }
     }
-  };
+  }, []);
 
-  // --- Инициализация Пулов ---
+  // --- Обработчик клика ---
+  const handleCircleClick = useCallback(
+    (circle: Circle) => {
+      console.log('Клик по кругу');
+      if (!circle.isActive) return;
+
+      const currentTargetColor = useGameSessionStore.getState().targetColor;
+
+      if (circle.color === currentTargetColor) {
+        addScore(10);
+        haptics?.impactOccurred?.('light');
+        spawnParticles(circle.x, circle.y, circle.color);
+      } else {
+        loseLife();
+        haptics?.notificationOccurred?.('error');
+      }
+
+      circle.reset();
+    },
+    [addScore, loseLife, haptics]
+  );
+
+  // --- Спавн круга ---
+  const spawnCircle = useCallback(() => {
+    const app = appRef.current;
+    if (!app) return;
+
+    const freeCircle = circlesRef.current.find((c) => !c.isActive);
+    if (!freeCircle) return;
+
+    const color = GAME_CONFIG.COLORS[Math.floor(Math.random() * GAME_CONFIG.COLORS.length)];
+    const x =
+      Math.random() * (app.screen.width - GAME_CONFIG.CIRCLE_RADIUS * 2) +
+      GAME_CONFIG.CIRCLE_RADIUS;
+    const y =
+      Math.random() * (app.screen.height - GAME_CONFIG.CIRCLE_RADIUS * 2) +
+      GAME_CONFIG.CIRCLE_RADIUS;
+
+    freeCircle.spawn({
+      x,
+      y,
+      color,
+      lifetime: GAME_CONFIG.CIRCLE_LIFETIME_SEC,
+    });
+  }, [appRef]);
+
+  // --- Инициализация пулов ---
   useEffect(() => {
     const app = appRef.current;
     if (!app || !isAppReady) return;
 
-    // Пул кругов
+    // Очищаем старые пулы
+    circlesRef.current.forEach((c) => c.destroy());
+    particlesRef.current.forEach((p) => p.destroy());
+    circlesRef.current = [];
+    particlesRef.current = [];
+
+    // Создаём пул кругов
     for (let i = 0; i < GAME_CONFIG.MAX_CIRCLES_ON_SCREEN; i++) {
-      const circle = new PIXI.Graphics() as GameCircle;
-      circle.eventMode = 'static';
-      circle.cursor = 'pointer';
-      circle.visible = false;
+      const circle = new Circle();
       circle.on('pointerdown', () => handleCircleClick(circle));
       app.stage.addChild(circle);
-      circlesRef.current.push(circle as GameCircle);
+      circlesRef.current.push(circle);
     }
 
-    // Пул частиц
-    for (let i = 0; i < 50; i++) {
-      const particle = new PIXI.Graphics();
-      particle.visible = false;
+    // Создаём пул частиц
+    for (let i = 0; i < GAME_CONFIG.MAX_PARTICLES; i++) {
+      const particle = new Particle();
       app.stage.addChild(particle);
-      particlesRef.current.push(particle as Particle);
+      particlesRef.current.push(particle);
     }
 
     return () => {
@@ -67,66 +117,44 @@ export function useGameEngine({ appRef, isAppReady, haptics }: UseGameEngineProp
       circlesRef.current = [];
       particlesRef.current = [];
     };
-  }, [isAppReady]);
+  }, [isAppReady, handleCircleClick]);
 
-  // --- Игровой Цикл (Ticker) ---
+  // --- Игровой цикл ---
   useEffect(() => {
     const app = appRef.current;
     if (!app || !isAppReady) return;
 
     const ticker = (ticker: PIXI.Ticker) => {
       const currentStatus = useGameSessionStore.getState().status;
-
       if (currentStatus !== 'playing') return;
 
-      const deltaSeconds = ticker.deltaMS / 1000;
-      tickTime(deltaSeconds);
+      const dt = ticker.deltaMS / 1000;
+      tickTime(dt);
 
+      // Смена цвета по таймеру
       if (useGameSessionStore.getState().timeToNextColor <= 0) {
         changeTargetColor();
       }
 
+      // Спавн новых кругов
       const now = Date.now();
       if (now - lastSpawnTimeRef.current > GAME_CONFIG.SPAWN_INTERVAL_MS) {
-        spawnCircle(circlesRef.current, app);
+        spawnCircle();
         lastSpawnTimeRef.current = now;
       }
 
-      // ✅ Обновляем возраст кругов и скрываем старые
-      circlesRef.current.forEach((circle) => {
-        if (circle.visible && circle.isActive) {
-          circle.age += deltaSeconds;
-
-          // Плавное исчезновение в последние 2 секунды
-          const fadeStart = circle.lifetime - 2;
-          if (circle.age >= fadeStart) {
-            const fadeProgress = (circle.age - fadeStart) / 2;
-            circle.alpha = Math.max(0, 1 - fadeProgress);
-          }
-
-          // Круг исчезает, когда время жизни истекло
-          if (circle.age >= circle.lifetime) {
-            returnToPool(circle);
-          }
-        }
-      });
-
-      // Анимация частиц
-      particlesRef.current.forEach((p) => {
-        if (p.visible) {
-          const particle = p as Particle;
-          particle.x += particle.velocity.x;
-          particle.y += particle.velocity.y;
-          particle.life -= deltaSeconds;
-          p.alpha = Math.max(0, particle.life);
-          if (particle.life <= 0) p.visible = false;
-        }
-      });
+      // Обновление всех объектов — ОДНА СТРОЧКА!
+      for (const circle of circlesRef.current) {
+        circle.update(dt);
+      }
+      for (const particle of particlesRef.current) {
+        particle.update(dt);
+      }
     };
 
     app.ticker.add(ticker);
     return () => {
       app.ticker.remove(ticker);
     };
-  }, [appRef, tickTime, changeTargetColor, status]);
+  }, [isAppReady, tickTime, changeTargetColor, spawnCircle]);
 }
