@@ -28,6 +28,8 @@ export class Particle extends GameObject<ParticleSpawnParams> {
   private life: number = 0;
   private maxLife: number = 0;
 
+  protected readonly ignoresFreeze = true;
+
   spawn(params: ParticleSpawnParams): void {
     // Рисуем частицу в локальных координатах
     this.clear();

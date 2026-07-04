@@ -44,7 +44,7 @@ export class Circle extends GameObject<CircleSpawnParams> {
     // Сохраняем параметры
     this.colorHex = params.color;
     this.lifetime = params.lifetime;
-    this.fadeDuration = Math.min(2, params.lifetime * 0.25);
+    this.fadeDuration = Math.min(2000, params.lifetime * 0.25);
     this.age = 0;
 
     // Активируем

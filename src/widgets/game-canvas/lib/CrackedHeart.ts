@@ -15,11 +15,6 @@ export interface CrackedHeartSpawnParams {
 /**
  * Разбитое сердце — визуальный эффект при потере жизни.
  * Появляется в точке клика, растёт до maxSize, затем исчезает.
- *
- * Жизненный цикл:
- * 1. spawn() — появляется в точке (x, y) с scale = 0
- * 2. update(dt) — растёт (первая половина), затем fade-out (вторая половина)
- * 3. reset() — возвращается в пул
  */
 export class CrackedHeart extends GameObject<CrackedHeartSpawnParams> {
   private text: PIXI.Text | null = null;
@@ -30,24 +25,21 @@ export class CrackedHeart extends GameObject<CrackedHeartSpawnParams> {
   spawn(params: CrackedHeartSpawnParams): void {
     // Очищаем предыдущий текст, если есть
     if (this.text) {
-      this.removeChild(this.text);
       this.text.destroy();
+      this.text = null;
     }
 
-    // Создаём текст с эмодзи
+    // Создаём текст с правильным API PIXI 8
     this.text = new PIXI.Text({
       text: '💔',
-      style: new PIXI.TextStyle({
+      style: {
         fontSize: 100,
         fill: '#FF0000',
-      }),
+      },
     });
 
     // Центрируем текст
     this.text.anchor.set(0.5);
-
-    // Добавляем на сцену
-    this.addChild(this.text);
 
     // Позиционируем
     this.x = params.x;
@@ -62,7 +54,14 @@ export class CrackedHeart extends GameObject<CrackedHeartSpawnParams> {
     this.scale.set(0);
     this.alpha = 0;
 
-    // Активируем (eventMode остаётся 'none' — не кликабельно)
+    // Добавляем текст на stage напрямую, а не как child
+    if (this.parent) {
+      this.parent.addChild(this.text);
+      this.text.x = this.x;
+      this.text.y = this.y;
+    }
+
+    // Активируем
     this.activate();
   }
 
@@ -75,13 +74,13 @@ export class CrackedHeart extends GameObject<CrackedHeartSpawnParams> {
     if (progress < 0.5) {
       // Первая половина: рост
       const scaleProgress = progress * 2; // 0 → 1
-      const currentScale = scaleProgress * (this.maxSize / 100); // 100 — базовый размер эмодзи
-      this.scale.set(currentScale);
-      this.alpha = scaleProgress; // Появляется
+      const currentScale = scaleProgress * (this.maxSize / 100);
+      this.text.scale.set(currentScale);
+      this.text.alpha = scaleProgress;
     } else {
       // Вторая половина: fade-out
       const fadeProgress = (progress - 0.5) * 2; // 0 → 1
-      this.alpha = 1 - fadeProgress; // Исчезает
+      this.text.alpha = 1 - fadeProgress;
     }
 
     // Смерть, когда время вышло
@@ -92,6 +91,16 @@ export class CrackedHeart extends GameObject<CrackedHeartSpawnParams> {
 
   reset(): void {
     super.reset();
+
+    // Удаляем текст из stage
+    if (this.text) {
+      if (this.text.parent) {
+        this.text.parent.removeChild(this.text);
+      }
+      this.text.destroy();
+      this.text = null;
+    }
+
     this.age = 0;
     this.maxSize = 0;
     this.duration = 0;

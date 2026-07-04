@@ -17,6 +17,13 @@ export abstract class GameObject<TSpawnParams = void> extends PIXI.Graphics {
   protected _isActive: boolean = false;
 
   /**
+   * Если true — объект обновляется даже при freeze (визуальные эффекты).
+   * Если false — объект не обновляется при freeze (интерактивные объекты).
+   * По умолчанию false — учитывает freeze.
+   */
+  protected readonly ignoresFreeze: boolean = false;
+
+  /**
    * Геттер для проверки активности.
    * Внешний код (движок) не должен менять это напрямую.
    */
@@ -35,7 +42,7 @@ export abstract class GameObject<TSpawnParams = void> extends PIXI.Graphics {
 
   /**
    * Обновить состояние на один кадр.
-   * Вызывается движком каждый кадр с delta time в секундах.
+   * Вызывается движком каждый кадр с delta time в миллисекундах.
    * Наследник должен:
    * - Обновить свою внутреннюю логику (возраст, позиция, etc)
    * - Вызвать reset(), если "умер"
