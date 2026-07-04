@@ -10,7 +10,7 @@ export function TargetColorIndicator() {
   const t = useTranslations('game');
   const targetColor = useGameSessionStore((state) => state.targetColor);
   const timeToNextColor = useGameSessionStore((state) => state.timeToNextColor);
-  console.log(timeToNextColor);
+
   const [isChanging, setIsChanging] = useState(false);
   const [prevColor, setPrevColor] = useState(targetColor);
 
