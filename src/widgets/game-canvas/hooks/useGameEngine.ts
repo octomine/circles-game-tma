@@ -20,9 +20,35 @@ export function useGameEngine({ appRef, isAppReady, haptics }: UseGameEngineProp
   const crackedHeartsRef = useRef<CrackedHeart[]>([]);
   const lastSpawnTimeRef = useRef(0);
 
-  // Состояние заморозки — ← ИЗМЕНЕНО
+  // Состояние заморозки
   const isFreezingRef = useRef(false);
   const freezeTimeLeftRef = useRef(0);
+
+  // --- Выбор цвета для спавна ---
+  const chooseColorForSpawn = useCallback((): string => {
+    const targetColor = useGameSessionStore.getState().targetColor;
+
+    // Считаем количество активных кругов
+    const activeCircles = circlesRef.current.filter((circle) => circle.isActive);
+    const activeCirclesCount = activeCircles.length;
+
+    // Проверяем, есть ли на экране хотя бы один круг нужного цвета
+    const hasTargetColorOnScreen = activeCircles.some((circle) => circle.color === targetColor);
+
+    // Гарантия только если экран достаточно заполнен
+    if (activeCirclesCount >= GAME_CONFIG.MIN_CIRCLES_FOR_GUARANTEE && !hasTargetColorOnScreen) {
+      return targetColor;
+    }
+
+    // Если нужный цвет есть или экран не заполнен — используем базовую вероятность
+    if (Math.random() < GAME_CONFIG.TARGET_COLOR_SPAWN_CHANCE) {
+      return targetColor;
+    }
+
+    // Иначе — случайный цвет из остальных
+    const otherColors = GAME_CONFIG.COLORS.filter((c) => c !== targetColor);
+    return otherColors[Math.floor(Math.random() * otherColors.length)];
+  }, []);
 
   // --- Спавн круга ---
   const spawnCircle = useCallback(() => {
@@ -32,19 +58,29 @@ export function useGameEngine({ appRef, isAppReady, haptics }: UseGameEngineProp
     const freeCircle = circlesRef.current.find((c) => !c.isActive);
     if (!freeCircle) return;
 
-    const color = GAME_CONFIG.COLORS[Math.floor(Math.random() * GAME_CONFIG.COLORS.length)];
-    const x =
-      Math.random() * (app.screen.width - GAME_CONFIG.CIRCLE_RADIUS * 2) +
-      GAME_CONFIG.CIRCLE_RADIUS;
-    const y =
-      Math.random() * (app.screen.height - GAME_CONFIG.CIRCLE_RADIUS * 2) +
-      GAME_CONFIG.CIRCLE_RADIUS;
+    // Используем новую функцию выбора цвета
+    const color = chooseColorForSpawn();
+
+    // Полярные координаты
+    const centerX = app.screen.width / 2;
+    const centerY = app.screen.height / 2;
+    const maxRadius = Math.min(app.screen.width, app.screen.height) / 2;
+
+    // Случайный угол (0-2π)
+    const angle = Math.random() * Math.PI * 2;
+
+    // Случайное расстояние от центра (используем sqrt для равномерного распределения по площади)
+    const distance = Math.random() * maxRadius;
+    // const distance = Math.sqrt(Math.random()) * maxRadius;
+
+    // Преобразуем в прямоугольные координаты
+    const x = centerX + Math.cos(angle) * distance;
+    const y = centerY + Math.sin(angle) * distance;
 
     freeCircle.spawn({
       x,
       y,
       color,
-      lifetime: GAME_CONFIG.CIRCLE_LIFETIME_MS,
     });
   }, [appRef]);
 

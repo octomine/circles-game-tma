@@ -2,55 +2,58 @@ import { GAME_CONFIG } from '@/entities/game-session';
 
 import { GameObject } from './GameObject';
 
-/**
- * Параметры для спавна круга.
- */
 export interface CircleSpawnParams {
   x: number;
   y: number;
   color: string;
-  lifetime: number;
 }
 
-/**
- * Игровой круг — кликабельный объект с временем жизни.
- *
- * Жизненный цикл:
- * 1. spawn() — появляется в точке (x, y) с заданным цветом
- * 2. update(dt) — стареет, плавно исчезает в конце жизни
- * 3. reset() — возвращается в пул, когда lifetime истёк
- */
 export class Circle extends GameObject<CircleSpawnParams> {
   private colorHex: string = '';
   private age: number = 0;
   private lifetime: number = 0;
-  private fadeDuration: number = 2;
+  private radius: number = 0;
+  private hasSwitchedPivot: boolean = false;
 
-  /** Геттер цвета — для проверки клика */
   get color(): string {
     return this.colorHex;
   }
 
+  private getRandomPointInside(maxOffset: number): { x: number; y: number } {
+    const angle = Math.random() * Math.PI * 2;
+    const r = Math.sqrt(Math.random()) * maxOffset;
+    return { x: Math.cos(angle) * r, y: Math.sin(angle) * r };
+  }
+
   spawn(params: CircleSpawnParams): void {
-    // Рисуем круг в локальных координатах (центр в 0,0)
+    const variance = GAME_CONFIG.CIRCLE_RADIUS_VARIANCE;
+    const minRadius = GAME_CONFIG.CIRCLE_RADIUS * (1 - variance);
+    const maxRadius = GAME_CONFIG.CIRCLE_RADIUS * (1 + variance);
+    this.radius = minRadius + Math.random() * (maxRadius - minRadius);
+
+    const lifetimeVariance = GAME_CONFIG.CIRCLE_LIFETIME_VARIANCE;
+    const minLifetime = GAME_CONFIG.CIRCLE_LIFETIME_MS * (1 - lifetimeVariance);
+    const maxLifetime = GAME_CONFIG.CIRCLE_LIFETIME_MS * (1 + lifetimeVariance);
+    this.lifetime = minLifetime + Math.random() * (maxLifetime - minLifetime);
+
     this.clear();
-    this.circle(0, 0, GAME_CONFIG.CIRCLE_RADIUS);
+    this.circle(0, 0, this.radius);
     this.fill(params.color);
 
-    // Позиционируем на сцене
     this.x = params.x;
     this.y = params.y;
 
-    // Сохраняем параметры
     this.colorHex = params.color;
-    this.lifetime = params.lifetime;
-    this.fadeDuration = Math.min(2000, params.lifetime * 0.25);
     this.age = 0;
+    this.hasSwitchedPivot = false;
 
-    // Активируем
+    // Точка A для первой половины жизни
+    const pointA = this.getRandomPointInside(this.radius);
+    this.pivot.set(pointA.x, pointA.y);
+
+    this.scale.set(0);
     this.activate();
 
-    // Делаем кликабельным
     this.eventMode = 'static';
     this.cursor = 'pointer';
   }
@@ -59,15 +62,24 @@ export class Circle extends GameObject<CircleSpawnParams> {
     if (!this._isActive) return;
 
     this.age += dt;
+    const progress = this.age / this.lifetime;
+    const scale = Math.sin(progress * Math.PI);
+    this.scale.set(scale);
 
-    // Плавное исчезновение в последние секунды
-    const fadeStart = this.lifetime - this.fadeDuration;
-    if (this.age >= fadeStart) {
-      const fadeProgress = (this.age - fadeStart) / this.fadeDuration;
-      this.alpha = Math.max(0, 1 - fadeProgress);
+    // 🔄 Смена pivot в середине жизни + компенсация позиции
+    if (progress >= 0.5 && !this.hasSwitchedPivot) {
+      const oldPivotX = this.pivot.x;
+      const oldPivotY = this.pivot.y;
+      const pointB = this.getRandomPointInside(this.radius * 0.4);
+
+      // 🛡️ Компенсация: сдвигаем x/y так, чтобы визуальная позиция не изменилась
+      this.x += (pointB.x - oldPivotX) * scale;
+      this.y += (pointB.y - oldPivotY) * scale;
+
+      this.pivot.set(pointB.x, pointB.y);
+      this.hasSwitchedPivot = true;
     }
 
-    // Смерть по таймеру
     if (this.age >= this.lifetime) {
       this.reset();
     }
@@ -78,6 +90,10 @@ export class Circle extends GameObject<CircleSpawnParams> {
     this.age = 0;
     this.colorHex = '';
     this.lifetime = 0;
+    this.radius = 0;
+    this.hasSwitchedPivot = false;
+    this.scale.set(0);
+    this.pivot.set(0, 0);
     this.eventMode = 'none';
     this.cursor = 'default';
   }
