@@ -10,7 +10,7 @@ export function TargetColorIndicator() {
   const t = useTranslations('game');
   const targetColor = useGameSessionStore((state) => state.targetColor);
   const timeToNextColor = useGameSessionStore((state) => state.timeToNextColor);
-
+  console.log(timeToNextColor);
   const [isChanging, setIsChanging] = useState(false);
   const [prevColor, setPrevColor] = useState(targetColor);
 
@@ -26,7 +26,7 @@ export function TargetColorIndicator() {
   }, [targetColor, prevColor]);
 
   // Пульсация за 3 секунды до смены цвета
-  const isUrgent = timeToNextColor <= 3;
+  const isUrgent = timeToNextColor <= 3000;
 
   return (
     <div
@@ -67,7 +67,7 @@ export function TargetColorIndicator() {
       {/* Таймер (опционально) */}
       {isUrgent && (
         <span className={cn('mt-2 text-xs font-bold', 'text-[var(--tg-theme-button-color)]')}>
-          {t('hud.timeLeft', { seconds: Math.ceil(timeToNextColor) })}
+          {t('hud.timeLeft', { seconds: Math.ceil(timeToNextColor / 1000) })}
         </span>
       )}
     </div>

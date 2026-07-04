@@ -26,9 +26,6 @@ export const useGameSessionStore = create<GameSessionState>((set, get) => ({
   loseLife: () =>
     set((state) => {
       const newLives = state.lives - 1;
-      if (newLives <= 0) {
-        return { lives: 0, status: 'gameover' };
-      }
       return { lives: newLives };
     }),
 
@@ -39,22 +36,22 @@ export const useGameSessionStore = create<GameSessionState>((set, get) => ({
 
     set({
       targetColor: newColor,
-      timeToNextColor: GAME_CONFIG.TIME_TO_CHANGE_COLOR,
+      timeToNextColor: GAME_CONFIG.TIME_TO_CHANGE_COLOR_MS,
     });
   },
 
-  tickTime: (deltaSeconds) =>
+  tickTime: (dt) =>
     set((state) => {
       if (state.status !== 'playing') return state;
 
-      const newTime = state.timeToNextColor - deltaSeconds;
+      const newTime = state.timeToNextColor - dt;
 
       if (newTime <= 0) {
         const available = GAME_CONFIG.COLORS.filter((c) => c !== state.targetColor);
         const newColor = available[Math.floor(Math.random() * available.length)];
 
         return {
-          timeToNextColor: GAME_CONFIG.TIME_TO_CHANGE_COLOR,
+          timeToNextColor: GAME_CONFIG.TIME_TO_CHANGE_COLOR_MS,
           targetColor: newColor,
         };
       }
