@@ -9,6 +9,7 @@ import type { UseGameEngineProps } from './types';
 
 export function useGameEngine({ appRef, isAppReady, haptics }: UseGameEngineProps) {
   // Селекторы стора
+  const status = useGameSessionStore((state) => state.status);
   const addScore = useGameSessionStore((state) => state.addScore);
   const loseLife = useGameSessionStore((state) => state.loseLife);
   const tickTime = useGameSessionStore((state) => state.tickTime);
@@ -268,4 +269,37 @@ export function useGameEngine({ appRef, isAppReady, haptics }: UseGameEngineProp
       app.ticker.remove(ticker);
     };
   }, [isAppReady, tickTime, changeTargetColor, spawnCircle]);
+
+  // --- Очистка всех объектов при старте игры ---
+  useEffect(() => {
+    if (status !== 'playing') return;
+
+    // Сбрасываем все активные круги
+    circlesRef.current.forEach((circle) => {
+      if (circle.isActive) {
+        circle.reset();
+      }
+    });
+
+    // Сбрасываем все активные частицы
+    particlesRef.current.forEach((particle) => {
+      if (particle.isActive) {
+        particle.reset();
+      }
+    });
+
+    // Сбрасываем все активные сердца
+    crackedHeartsRef.current.forEach((heart) => {
+      if (heart.isActive) {
+        heart.reset();
+      }
+    });
+
+    // Сбрасываем состояние заморозки
+    isFreezingRef.current = false;
+    freezeTimeLeftRef.current = 0;
+
+    // Сбрасываем таймер спавна, чтобы первый круг появился сразу
+    lastSpawnTimeRef.current = 0;
+  }, [status]);
 }
