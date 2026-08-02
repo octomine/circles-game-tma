@@ -2,8 +2,7 @@
 
 import { useEffect, useState, ReactNode } from 'react';
 
-import { TelegramContext, ITelegramContext } from '@/shared/lib/telegram';
-import { initTelegramMock } from '@/shared/lib/telegram-mock';
+import { initTelegramMock, ITelegramContext, TelegramContext } from '@/shared';
 
 export function TelegramProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<ITelegramContext>({
@@ -25,6 +24,9 @@ export function TelegramProvider({ children }: { children: ReactNode }) {
   });
 
   useEffect(() => {
+    console.log('[DIAG] typeof window.Telegram', typeof window.Telegram);
+    console.log('[DIAG] window.Telegram?.WebApp', window.Telegram?.WebApp);
+
     // 1. Инициализация мока
     if (
       typeof window !== 'undefined' &&
