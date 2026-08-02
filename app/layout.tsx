@@ -4,6 +4,7 @@ import '../src/app/styles/globals.css';
 import { getLocale, getMessages } from 'next-intl/server';
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/next';
+import Script from 'next/script';
 
 import { IntlProvider, TelegramProvider } from '@/app/providers';
 
@@ -33,6 +34,7 @@ export default async function RootLayout({
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col">
+        <Script src="https://telegram.org/js/telegram-web-app.js" strategy="beforeInteractive" />
         <IntlProvider messages={messages} locale={locale}>
           <TelegramProvider>{children}</TelegramProvider>
         </IntlProvider>
