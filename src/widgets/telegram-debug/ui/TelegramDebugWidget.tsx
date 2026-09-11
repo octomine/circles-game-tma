@@ -18,10 +18,8 @@ export function TelegramDebugWidget() {
 
   // 2. Функция для теста Haptic Feedback
   const testHaptic = () => {
-    if (webApp) {
-      webApp.HapticFeedback.impactOccurred('medium');
-      console.log('✅ Haptic triggered');
-    }
+    webApp?.HapticFeedback?.impactOccurred?.('medium');
+    console.log('✅ Haptic triggered');
   };
 
   // 3. Функция для теста MainButton (нативная кнопка Telegram)
@@ -31,7 +29,7 @@ export function TelegramDebugWidget() {
       webApp.MainButton.show();
       webApp.MainButton.onClick(() => {
         console.log('✅ MainButton clicked!');
-        webApp.HapticFeedback.notificationOccurred('success');
+        webApp.HapticFeedback?.notificationOccurred?.('success');
         webApp.MainButton.hide();
       });
     }

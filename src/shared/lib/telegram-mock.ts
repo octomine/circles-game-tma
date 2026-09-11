@@ -2,7 +2,8 @@ import { WebApp } from '@twa-dev/types';
 
 export const initTelegramMock = () => {
   if (typeof window === 'undefined') return;
-  if (window.Telegram?.WebApp) return;
+  // Не перетираем живую Mini App-сессию
+  if (window.Telegram?.WebApp?.initData) return;
 
   console.log('🤖 [DEV] Initializing Telegram WebApp Mock...');
 
