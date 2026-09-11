@@ -73,7 +73,6 @@ export function TelegramProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let cancelled = false;
     let userRetryId: number | undefined;
-    let sdkWaitId: number | undefined;
 
     const syncState = (nextState: ITelegramContext) => {
       if (!cancelled) {
@@ -140,7 +139,7 @@ export function TelegramProvider({ children }: { children: ReactNode }) {
     }
 
     let waitAttempts = 0;
-    sdkWaitId = window.setInterval(() => {
+    const sdkWaitId = window.setInterval(() => {
       if (cancelled) {
         window.clearInterval(sdkWaitId);
         return;
