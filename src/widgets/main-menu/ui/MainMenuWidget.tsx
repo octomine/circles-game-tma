@@ -15,7 +15,7 @@ export function MainMenuWidget() {
   const score = useGameSessionStore((state) => state.score);
 
   const handleStartGame = () => {
-    webApp?.HapticFeedback.impactOccurred('medium');
+    webApp?.HapticFeedback?.impactOccurred?.('medium');
     router.push('/game');
   };
 

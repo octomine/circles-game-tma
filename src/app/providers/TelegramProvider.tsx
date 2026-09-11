@@ -4,6 +4,53 @@ import { useEffect, useState, ReactNode } from 'react';
 
 import { initTelegramMock, ITelegramContext, TelegramContext } from '@/shared';
 
+const USER_RETRY_ATTEMPTS = 10;
+const USER_RETRY_INTERVAL_MS = 100;
+const SDK_WAIT_ATTEMPTS = 20;
+const SDK_WAIT_INTERVAL_MS = 50;
+
+function applyTelegramTheme(themeParams: ITelegramContext['theme']) {
+  if (!themeParams) return;
+
+  const root = document.documentElement;
+  Object.entries(themeParams).forEach(([key, value]) => {
+    if (typeof value === 'string') {
+      root.style.setProperty(`--tg-theme-${key}`, value);
+    }
+  });
+}
+
+function readTelegramState(): ITelegramContext | null {
+  const tg = window.Telegram?.WebApp;
+  if (!tg) return null;
+
+  return {
+    webApp: tg,
+    isReady: true,
+    user: tg.initDataUnsafe?.user || null,
+    theme: tg.themeParams || null,
+  };
+}
+
+function bootstrapTelegramWebApp() {
+  const tg = window.Telegram?.WebApp;
+  if (!tg) return null;
+
+  tg.ready?.();
+  tg.expand?.();
+
+  if (typeof tg.isVersionAtLeast !== 'function' || tg.isVersionAtLeast('6.2')) {
+    try {
+      tg.enableClosingConfirmation?.();
+    } catch (error) {
+      console.warn('[TG] enableClosingConfirmation failed:', error);
+    }
+  }
+
+  applyTelegramTheme(tg.themeParams || null);
+  return readTelegramState();
+}
+
 export function TelegramProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<ITelegramContext>({
     webApp: null,
@@ -24,76 +71,105 @@ export function TelegramProvider({ children }: { children: ReactNode }) {
   });
 
   useEffect(() => {
-    const initTelegram = () => {
-      // Если SDK уже загружен (например, через next/script или кэш)
-      if (window.Telegram?.WebApp) {
-        const tg = window.Telegram.WebApp;
-        console.log('🟢 [TG] SDK found, initializing...');
-        tg.ready();
-        tg.expand();
-        tg.enableClosingConfirmation();
+    let cancelled = false;
+    let userRetryId: number | undefined;
 
-        setState({
-          webApp: tg,
-          isReady: true,
-          user: tg.initDataUnsafe?.user || null,
-          theme: tg.themeParams || null,
-        });
-
-        if (tg.themeParams) {
-          const root = document.documentElement;
-          Object.entries(tg.themeParams).forEach(([key, value]) => {
-            root.style.setProperty(`--tg-theme-${key}`, value as string);
-          });
-        }
+    const syncState = (nextState: ITelegramContext) => {
+      if (!cancelled) {
+        setState(nextState);
       }
     };
 
-    const loadScript = () => {
-      console.log('📦 [TG] SDK not found, loading script...');
-      const script = document.createElement('script');
-      script.src = 'https://telegram.org/js/telegram-web-app.js';
-      script.async = true;
+    const retryUserIfMissing = () => {
+      if (window.Telegram?.WebApp?.initDataUnsafe?.user) return;
 
-      script.onload = () => {
-        console.log('✅ [TG] Script loaded successfully');
-        initTelegram();
-      };
+      let attempts = 0;
+      userRetryId = window.setInterval(() => {
+        if (cancelled) {
+          window.clearInterval(userRetryId);
+          return;
+        }
 
-      script.onerror = () => {
-        console.error('❌ [TG] Failed to load SDK script!');
-        // Если загрузка не удалась, помечаем как готовое (но без webApp),
-        // чтобы приложение не висело вечно
-        setState((prev) => ({ ...prev, isReady: true }));
-      };
+        attempts += 1;
+        const nextState = readTelegramState();
+        const user = nextState?.user;
 
-      document.head.appendChild(script);
+        if (user) {
+          window.clearInterval(userRetryId);
+          applyTelegramTheme(nextState.theme);
+          syncState(nextState);
+          return;
+        }
+
+        if (attempts >= USER_RETRY_ATTEMPTS) {
+          window.clearInterval(userRetryId);
+        }
+      }, USER_RETRY_INTERVAL_MS);
     };
 
-    // Логика запуска
-    if (typeof window !== 'undefined') {
-      console.log('[DIAG] window.Telegram:', window.Telegram);
-      console.log('[DIAG] Environment:', process.env.NODE_ENV);
-      console.log('[DIAG] Enable Mock:', process.env.NEXT_PUBLIC_ENABLE_MOCK);
+    const initTelegram = () => {
+      const nextState = bootstrapTelegramWebApp();
+      if (!nextState) return false;
 
-      // 1. Если включен принудительный мок (для отладки на Vercel)
-      if (process.env.NEXT_PUBLIC_ENABLE_MOCK === 'true' && !window.Telegram) {
+      console.log('🟢 [TG] SDK found, initializing...');
+      syncState(nextState);
+      retryUserIfMissing();
+      return true;
+    };
+
+    const maybeInitMock = () => {
+      const hasRealInitData = Boolean(window.Telegram?.WebApp?.initData);
+      if (process.env.NEXT_PUBLIC_ENABLE_MOCK === 'true' && !hasRealInitData) {
         console.log('🤖 [DEV] Forcing Mock Mode...');
         initTelegramMock();
-        // Мока достаточно, initTelegram вызовем после, так как мок может сразу установить window.Telegram
-        setTimeout(initTelegram, 10);
-        return;
       }
+    };
 
-      // 2. Если реальный SDK уже есть
-      if (window.Telegram?.WebApp) {
-        initTelegram();
-        return;
-      }
+    console.log('[DIAG] window.Telegram:', window.Telegram);
+    console.log('[DIAG] Environment:', process.env.NODE_ENV);
+    console.log('[DIAG] Enable Mock:', process.env.NEXT_PUBLIC_ENABLE_MOCK);
 
-      // 3. Если SDK нет и мы не в режиме мока — грузим скрипт
-      loadScript();
+    maybeInitMock();
+
+    if (initTelegram()) {
+      return () => {
+        cancelled = true;
+        if (userRetryId) window.clearInterval(userRetryId);
+      };
     }
+
+    let waitAttempts = 0;
+    const sdkWaitId = window.setInterval(() => {
+      if (cancelled) {
+        window.clearInterval(sdkWaitId);
+        return;
+      }
+
+      waitAttempts += 1;
+      maybeInitMock();
+
+      if (initTelegram()) {
+        window.clearInterval(sdkWaitId);
+        return;
+      }
+
+      if (waitAttempts >= SDK_WAIT_ATTEMPTS) {
+        window.clearInterval(sdkWaitId);
+        console.warn('[TG] SDK did not appear, continuing without WebApp');
+        syncState({
+          webApp: null,
+          isReady: true,
+          user: null,
+          theme: null,
+        });
+      }
+    }, SDK_WAIT_INTERVAL_MS);
+
+    return () => {
+      cancelled = true;
+      if (userRetryId) window.clearInterval(userRetryId);
+      if (sdkWaitId) window.clearInterval(sdkWaitId);
+    };
   }, []);
 
   return (
