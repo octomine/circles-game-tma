@@ -5,13 +5,12 @@ import { useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
 
 import { useGameSessionStore } from '@/entities/game-session';
-import { cn, updateBestScore, useTelegram } from '@/shared';
+import { cn, updateBestScore } from '@/shared';
 
 export function GameOverWidget() {
   const router = useRouter();
   const tGame = useTranslations('game');
   const tCommon = useTranslations('common');
-  const { webApp } = useTelegram();
 
   const score = useGameSessionStore((state) => state.score);
   const startGame = useGameSessionStore((state) => state.startGame);
@@ -25,10 +24,7 @@ export function GameOverWidget() {
     const { isNewRecord: newRecord, bestScore: best } = updateBestScore(score);
     setBestScore(best);
     setIsNewRecord(newRecord);
-
-    // Вибрация при Game Over
-    webApp?.HapticFeedback?.notificationOccurred?.('error');
-  }, [score, webApp]);
+  }, [score]);
 
   // Анимация "накрутки" счёта
   useEffect(() => {
@@ -59,12 +55,10 @@ export function GameOverWidget() {
   }, [score]);
 
   const handleRetry = () => {
-    webApp?.HapticFeedback?.impactOccurred?.('medium');
     startGame();
   };
 
   const handleGoToMenu = () => {
-    webApp?.HapticFeedback?.impactOccurred?.('light');
     reset();
     router.push('/');
   };

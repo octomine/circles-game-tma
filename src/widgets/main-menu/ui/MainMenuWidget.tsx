@@ -4,34 +4,18 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 
 import { useGameSessionStore } from '@/entities/game-session';
-import { cn, useTelegram } from '@/shared';
+import { cn } from '@/shared';
 
 export function MainMenuWidget() {
   const router = useRouter();
   const tMenu = useTranslations('menu');
   const tCommon = useTranslations('common');
 
-  const { isReady, user, webApp } = useTelegram();
   const score = useGameSessionStore((state) => state.score);
 
   const handleStartGame = () => {
-    webApp?.HapticFeedback?.impactOccurred?.('medium');
     router.push('/game');
   };
-
-  // Показываем лоадер, пока Telegram SDK не инициализирован
-  if (!isReady) {
-    return (
-      <div
-        className={cn(
-          'flex h-screen w-full items-center justify-center',
-          'bg-[var(--tg-theme-bg-color)]'
-        )}
-      >
-        <span className="text-[var(--tg-theme-hint-color)]">{tCommon('loading')}</span>
-      </div>
-    );
-  }
 
   return (
     <div
@@ -48,12 +32,7 @@ export function MainMenuWidget() {
       </h1>
 
       {/* Приветствие */}
-      <p className="mb-1 text-lg">
-        {tMenu('greeting', { name: user?.first_name || tCommon('player') })} 👋
-      </p>
-      <p className="mb-8 text-sm text-[var(--tg-theme-hint-color)]">
-        {tMenu('yourId')}: {user?.id}
-      </p>
+      <p className="mb-1 text-lg">{tMenu('greeting', { name: tCommon('player') })} 👋</p>
 
       {/* Статистика */}
       <div
