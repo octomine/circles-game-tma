@@ -1,20 +1,23 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 
 import { useGameSessionStore } from '@/entities/game-session';
 import { cn } from '@/shared';
+import { useGameNavigation } from '@/shared/navigation';
 
 export function MainMenuWidget() {
-  const router = useRouter();
   const tMenu = useTranslations('menu');
   const tCommon = useTranslations('common');
 
+  const { setScreen } = useGameNavigation();
+
   const score = useGameSessionStore((state) => state.score);
+  const startGame = useGameSessionStore((state) => state.startGame);
 
   const handleStartGame = () => {
-    router.push('/game');
+    startGame();
+    setScreen('game');
   };
 
   return (

@@ -3,8 +3,6 @@
 import { useEffect, useRef, useState } from 'react';
 import * as PIXI from 'pixi.js';
 
-import { useGameSessionStore } from '@/entities/game-session';
-
 import { useGameEngine } from '../hooks/useGameEngine';
 
 export function GameCanvasWidget() {
@@ -12,7 +10,6 @@ export function GameCanvasWidget() {
   const appRef = useRef<PIXI.Application | null>(null);
   const isInitializedRef = useRef(false);
   const isMountedRef = useRef(true);
-  const startGame = useGameSessionStore((state) => state.startGame);
   const [isAppReady, setIsAppReady] = useState(false);
 
   useGameEngine({
@@ -78,7 +75,6 @@ export function GameCanvasWidget() {
         app.canvas.style.display = 'block';
 
         setIsAppReady(true);
-        startGame();
       })
       .catch((error) => {
         console.error('Pixi initialization failed:', error);

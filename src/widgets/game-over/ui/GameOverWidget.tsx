@@ -1,16 +1,17 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
 
 import { useGameSessionStore } from '@/entities/game-session';
 import { cn, updateBestScore } from '@/shared';
+import { useGameNavigation } from '@/shared/navigation';
 
 export function GameOverWidget() {
-  const router = useRouter();
   const tGame = useTranslations('game');
   const tCommon = useTranslations('common');
+
+  const { setScreen } = useGameNavigation();
 
   const score = useGameSessionStore((state) => state.score);
   const startGame = useGameSessionStore((state) => state.startGame);
@@ -56,11 +57,12 @@ export function GameOverWidget() {
 
   const handleRetry = () => {
     startGame();
+    setScreen('game');
   };
 
   const handleGoToMenu = () => {
     reset();
-    router.push('/');
+    setScreen('menu');
   };
 
   return (

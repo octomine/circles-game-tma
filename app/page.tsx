@@ -1,5 +1,5 @@
-import { MainMenuWidget } from '@/widgets/main-menu';
+import { GameRouterView } from '@/pages/game-router';
 
 export default function Home() {
-  return <MainMenuWidget />;
+  return <GameRouterView />;
 }

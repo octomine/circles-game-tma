@@ -60,12 +60,13 @@ circles-game-tma/
 │
 ├── app/                              # 🚪 Точки входа Next.js
 │   ├── layout.tsx                    #    Root layout с провайдерами
-│   ├── page.tsx                      #    Главная страница
-│   └── game/page.tsx                 #    Страница игры
+│   ├── providers.tsx                 #    AppProviders (Intl + навигация)
+│   └── page.tsx                      #    Единственная точка входа (SPA)
 │
 └── src/
     ├── pages/                        # 📄 Страницы (композиция виджетов)
-    │   └── game/ui/GameView.tsx
+    │   ├── game/ui/GameView.tsx
+    │   └── game-router/ui/GameRouterView.tsx  # Свитчер экранов по состоянию
     │
     ├── widgets/                      # 🧩 Самостоятельные UI-блоки
     │   ├── main-menu/                #    Главное меню
@@ -106,6 +107,11 @@ circles-game-tma/
         │   │   ├── hooks/useTelegram.ts
         │   │   └── TelegramProvider.tsx
         │   └── telegram-mock.ts      #    Мок для разработки
+        ├── navigation/                #    Навигация без URL (состояние React)
+        │   ├── context.ts
+        │   ├── GameNavigationProvider.tsx
+        │   ├── useGameNavigation.ts
+        │   └── types.ts              #    GameScreen = 'menu' | 'game' | 'gameover'
         └── i18n/                     #    Интернационализация
             ├── config.ts
             ├── request.ts
