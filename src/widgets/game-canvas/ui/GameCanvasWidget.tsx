@@ -3,9 +3,6 @@
 import { useEffect, useRef, useState } from 'react';
 import * as PIXI from 'pixi.js';
 
-import { useGameSessionStore } from '@/entities/game-session';
-import { useTelegram } from '@/shared';
-
 import { useGameEngine } from '../hooks/useGameEngine';
 
 export function GameCanvasWidget() {
@@ -13,14 +10,11 @@ export function GameCanvasWidget() {
   const appRef = useRef<PIXI.Application | null>(null);
   const isInitializedRef = useRef(false);
   const isMountedRef = useRef(true);
-  const { webApp } = useTelegram();
-  const startGame = useGameSessionStore((state) => state.startGame);
   const [isAppReady, setIsAppReady] = useState(false);
 
   useGameEngine({
     appRef,
     isAppReady,
-    haptics: webApp?.HapticFeedback || null,
   });
 
   useEffect(() => {
@@ -81,7 +75,6 @@ export function GameCanvasWidget() {
         app.canvas.style.display = 'block';
 
         setIsAppReady(true);
-        startGame();
       })
       .catch((error) => {
         console.error('Pixi initialization failed:', error);

@@ -7,7 +7,7 @@ import { Circle, CrackedHeart, Particle } from '../lib';
 
 import type { UseGameEngineProps } from './types';
 
-export function useGameEngine({ appRef, isAppReady, haptics }: UseGameEngineProps) {
+export function useGameEngine({ appRef, isAppReady }: UseGameEngineProps) {
   // Селекторы стора
   const status = useGameSessionStore((state) => state.status);
   const addScore = useGameSessionStore((state) => state.addScore);
@@ -128,13 +128,11 @@ export function useGameEngine({ appRef, isAppReady, haptics }: UseGameEngineProp
       if (circle.color === currentTargetColor) {
         // Попадание
         addScore(10);
-        haptics?.impactOccurred?.('light');
         spawnParticles(circle.x, circle.y, circle.color);
         circle.reset();
       } else {
         // Промах с эффектом
         loseLife();
-        haptics?.notificationOccurred?.('error');
 
         // Спавним эффект разбитого сердца
         spawnCrackedHeart(circle.x, circle.y);
@@ -146,7 +144,7 @@ export function useGameEngine({ appRef, isAppReady, haptics }: UseGameEngineProp
         circle.reset();
       }
     },
-    [addScore, loseLife, haptics]
+    [addScore, loseLife]
   );
 
   // --- Инициализация пулов ---

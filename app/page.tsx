@@ -1,7 +1,5 @@
-import { MainMenuWidget } from '@/widgets/main-menu';
-
-export const dynamic = 'force-dynamic';
+import { GameRouterView } from '@/pages/game-router';
 
 export default function Home() {
-  return <MainMenuWidget />;
+  return <GameRouterView />;
 }

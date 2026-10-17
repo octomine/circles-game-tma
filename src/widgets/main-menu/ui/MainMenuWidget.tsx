@@ -1,37 +1,28 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 
 import { useGameSessionStore } from '@/entities/game-session';
-import { cn, useTelegram } from '@/shared';
+import { cn } from '@/shared';
+import { useGameNavigation } from '@/shared/navigation';
 
 export function MainMenuWidget() {
-  const router = useRouter();
   const tMenu = useTranslations('menu');
   const tCommon = useTranslations('common');
 
-  const { isReady, user, webApp } = useTelegram();
+  const { setScreen } = useGameNavigation();
+
   const score = useGameSessionStore((state) => state.score);
+  const startGame = useGameSessionStore((state) => state.startGame);
 
   const handleStartGame = () => {
-    webApp?.HapticFeedback?.impactOccurred?.('medium');
-    router.push('/game');
+    startGame();
+    setScreen('game');
   };
 
-  // Показываем лоадер, пока Telegram SDK не инициализирован
-  if (!isReady) {
-    return (
-      <div
-        className={cn(
-          'flex h-screen w-full items-center justify-center',
-          'bg-[var(--tg-theme-bg-color)]'
-        )}
-      >
-        <span className="text-[var(--tg-theme-hint-color)]">{tCommon('loading')}</span>
-      </div>
-    );
-  }
+  const handleOpenLeaderboard = () => {
+    setScreen('leaderboard');
+  };
 
   return (
     <div
@@ -48,12 +39,7 @@ export function MainMenuWidget() {
       </h1>
 
       {/* Приветствие */}
-      <p className="mb-1 text-lg">
-        {tMenu('greeting', { name: user?.first_name || tCommon('player') })} 👋
-      </p>
-      <p className="mb-8 text-sm text-[var(--tg-theme-hint-color)]">
-        {tMenu('yourId')}: {user?.id}
-      </p>
+      <p className="mb-1 text-lg">{tMenu('greeting', { name: tCommon('player') })} 👋</p>
 
       {/* Статистика */}
       <div
@@ -81,6 +67,20 @@ export function MainMenuWidget() {
         )}
       >
         {tCommon('buttons.play')} 🎮
+      </button>
+
+      {/* Лидерборд: отдельный экран, доступен и из меню, и после игры */}
+      <button
+        onClick={handleOpenLeaderboard}
+        className={cn(
+          'mt-3 w-full max-w-xs rounded-xl',
+          'bg-[var(--tg-theme-secondary-bg-color)]',
+          'px-6 py-4 text-lg font-bold',
+          'text-[var(--tg-theme-text-color)]',
+          'transition-all active:opacity-80'
+        )}
+      >
+        {tCommon('buttons.leaderboard')} 🏆
       </button>
     </div>
   );

@@ -3,6 +3,8 @@
 import { AbstractIntlMessages, NextIntlClientProvider } from 'next-intl';
 import { ReactNode } from 'react';
 
+import { timeZone } from '@/shared/i18n';
+
 interface IntlProviderProps {
   locale: string;
   messages: Record<string, AbstractIntlMessages>;
@@ -11,7 +13,8 @@ interface IntlProviderProps {
 
 export function IntlProvider({ locale, messages, children }: IntlProviderProps) {
   return (
-    <NextIntlClientProvider locale={locale} messages={messages}>
+    // timeZone обязателен: без него next-intl падает с ENVIRONMENT_FALLBACK на клиенте.
+    <NextIntlClientProvider locale={locale} messages={messages} timeZone={timeZone}>
       {children}
     </NextIntlClientProvider>
   );

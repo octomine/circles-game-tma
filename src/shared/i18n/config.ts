@@ -3,6 +3,10 @@ export type Locale = (typeof locales)[number];
 
 export const defaultLocale: Locale = 'ru';
 
+// Часовой пояс нужен и серверу, и клиенту: без него next-intl кидает ENVIRONMENT_FALLBACK
+// при форматировании дат и чисел, потому что не может выбрать зону по умолчанию.
+export const timeZone = 'Europe/Moscow';
+
 // Маппинг для Telegram language_code
 export const telegramLocaleMap: Record<string, Locale> = {
   ru: 'ru',

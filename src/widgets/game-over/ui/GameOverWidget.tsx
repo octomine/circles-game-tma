@@ -1,34 +1,53 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { useGameSessionStore } from '@/entities/game-session';
-import { cn, updateBestScore, useTelegram } from '@/shared';
+import { BestScoreDisplay } from '@/entities/player-score';
+import { useSaveScore } from '@/features/save-score';
+import { cn } from '@/shared';
+import { useGameNavigation } from '@/shared/navigation';
 
-export function GameOverWidget() {
-  const router = useRouter();
+export const GameOverWidget = () => {
   const tGame = useTranslations('game');
   const tCommon = useTranslations('common');
-  const { webApp } = useTelegram();
+
+  const { setScreen } = useGameNavigation();
 
   const score = useGameSessionStore((state) => state.score);
   const startGame = useGameSessionStore((state) => state.startGame);
   const reset = useGameSessionStore((state) => state.reset);
 
-  const [bestScore, setBestScore] = useState(0);
+  const { saveScore } = useSaveScore();
+
   const [isNewRecord, setIsNewRecord] = useState(false);
+  const [isScoreSaved, setIsScoreSaved] = useState(false);
   const [displayedScore, setDisplayedScore] = useState(0);
 
-  useEffect(() => {
-    const { isNewRecord: newRecord, bestScore: best } = updateBestScore(score);
-    setBestScore(best);
-    setIsNewRecord(newRecord);
+  // Защита от двойного сохранения: StrictMode прогоняет эффект дважды.
+  const didSaveRef = useRef(false);
 
-    // Вибрация при Game Over
-    webApp?.HapticFeedback?.notificationOccurred?.('error');
-  }, [score, webApp]);
+  useEffect(() => {
+    if (didSaveRef.current) return;
+
+    didSaveRef.current = true;
+
+    // Сохраняем сразу при появлении экрана: кнопка «Играть снова» сбрасывает счёт,
+    // поэтому сохранять при клике было бы поздно.
+    // Флага отмены здесь нет намеренно: в StrictMode второй прогон эффекта выходит
+    // по didSaveRef, и отмена первого прогона оставила бы экран без результата.
+    void saveScore(score).then((result) => {
+      // SDK ещё не готов или синхронизация упала: снимаем флаг, чтобы попытка
+      // повторилась, когда облако станет доступно (saveScore сменит ссылку).
+      if (!result.success) {
+        didSaveRef.current = false;
+      }
+
+      setIsNewRecord(result.success && result.isNewRecord);
+      setIsScoreSaved(true);
+    });
+  }, [score, saveScore]);
 
   // Анимация "накрутки" счёта
   useEffect(() => {
@@ -59,14 +78,17 @@ export function GameOverWidget() {
   }, [score]);
 
   const handleRetry = () => {
-    webApp?.HapticFeedback?.impactOccurred?.('medium');
     startGame();
+    setScreen('game');
+  };
+
+  const handleOpenLeaderboard = () => {
+    setScreen('leaderboard');
   };
 
   const handleGoToMenu = () => {
-    webApp?.HapticFeedback?.impactOccurred?.('light');
     reset();
-    router.push('/');
+    setScreen('menu');
   };
 
   return (
@@ -93,8 +115,8 @@ export function GameOverWidget() {
           {tGame('gameOver.title')}
         </h1>
 
-        {/* Финальный счёт */}
-        <div className="mb-8 w-full text-center">
+        {/* Финальный счёт текущей сессии */}
+        <div className="mb-6 w-full text-center">
           <p
             className={cn('text-sm tracking-wider uppercase', 'text-[var(--tg-theme-hint-color)]')}
           >
@@ -107,21 +129,34 @@ export function GameOverWidget() {
           </p>
         </div>
 
-        {/* Лучший результат */}
+        {/* Плашка нового рекорда: только когда результат побил прежний */}
+        {isNewRecord && (
+          <div
+            className={cn(
+              'mb-6 w-full rounded-xl p-3 text-center',
+              'bg-[var(--tg-theme-button-color)]/20',
+              'animate-pulse'
+            )}
+          >
+            <p className="text-lg font-bold">{tGame('gameOver.newRecord')}</p>
+          </div>
+        )}
+
+        {/* Лучший счёт */}
         <div
           className={cn(
             'mb-8 w-full rounded-xl p-4 text-center',
-            'bg-[var(--tg-theme-secondary-bg-color)]',
-            isNewRecord && 'animate-pulse'
+            'bg-[var(--tg-theme-secondary-bg-color)]'
           )}
         >
           <p
             className={cn('text-sm tracking-wider uppercase', 'text-[var(--tg-theme-hint-color)]')}
           >
-            {isNewRecord ? tGame('gameOver.newRecord') : tGame('gameOver.bestScoreLabel')}
+            {tGame('gameOver.bestScoreTitle')}
           </p>
           <p className={cn('text-3xl font-bold tabular-nums', 'text-[var(--tg-theme-text-color)]')}>
-            {bestScore}
+            {/* Монтируем после сохранения, иначе компонент прочитал бы старый рекорд до записи */}
+            {isScoreSaved ? <BestScoreDisplay /> : '...'}
           </p>
         </div>
 
@@ -141,6 +176,19 @@ export function GameOverWidget() {
           </button>
 
           <button
+            onClick={handleOpenLeaderboard}
+            className={cn(
+              'w-full rounded-xl',
+              'bg-[var(--tg-theme-secondary-bg-color)]',
+              'px-6 py-4 text-lg font-bold',
+              'text-[var(--tg-theme-text-color)]',
+              'transition-all active:scale-95'
+            )}
+          >
+            {tCommon('buttons.leaderboard')} 🏆
+          </button>
+
+          <button
             onClick={handleGoToMenu}
             className={cn(
               'w-full rounded-xl',
@@ -156,4 +204,4 @@ export function GameOverWidget() {
       </div>
     </div>
   );
-}
+};
