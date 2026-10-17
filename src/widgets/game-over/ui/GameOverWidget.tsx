@@ -1,13 +1,15 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { useGameSessionStore } from '@/entities/game-session';
-import { cn, updateBestScore } from '@/shared';
+import { BestScoreDisplay } from '@/entities/player-score';
+import { useSaveScore } from '@/features/save-score';
+import { cn } from '@/shared';
 import { useGameNavigation } from '@/shared/navigation';
 
-export function GameOverWidget() {
+export const GameOverWidget = () => {
   const tGame = useTranslations('game');
   const tCommon = useTranslations('common');
 
@@ -17,15 +19,44 @@ export function GameOverWidget() {
   const startGame = useGameSessionStore((state) => state.startGame);
   const reset = useGameSessionStore((state) => state.reset);
 
-  const [bestScore, setBestScore] = useState(0);
+  const { saveScore } = useSaveScore();
+
   const [isNewRecord, setIsNewRecord] = useState(false);
+  const [isScoreSaved, setIsScoreSaved] = useState(false);
   const [displayedScore, setDisplayedScore] = useState(0);
 
+  // Счёт, который уже успешно ушёл в облако: защита от повторного прогона эффекта.
+  const savedScoreRef = useRef<number | null>(null);
+
+  // Сохраняем рекорд сразу при появлении экрана: кнопка «Повторить» сбрасывает счёт,
+  // поэтому сохранять при клике было бы поздно.
   useEffect(() => {
-    const { isNewRecord: newRecord, bestScore: best } = updateBestScore(score);
-    setBestScore(best);
-    setIsNewRecord(newRecord);
-  }, [score]);
+    let cancelled = false;
+
+    // Эффект перезапускается, когда облако стало доступно (saveScore сменил ссылку).
+    // Повторно сохранять тот же счёт не нужно, иначе бейдж «Новый рекорд» сбросился бы.
+    if (savedScoreRef.current === score) {
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    void saveScore(score).then((result) => {
+      if (cancelled) return;
+
+      // Запоминаем только успех: при ошибке эффект должен повторить попытку.
+      if (result.success) {
+        savedScoreRef.current = score;
+      }
+
+      setIsNewRecord(result.success && result.isNewRecord);
+      setIsScoreSaved(true);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [score, saveScore]);
 
   // Анимация "накрутки" счёта
   useEffect(() => {
@@ -117,7 +148,8 @@ export function GameOverWidget() {
             {isNewRecord ? tGame('gameOver.newRecord') : tGame('gameOver.bestScoreLabel')}
           </p>
           <p className={cn('text-3xl font-bold tabular-nums', 'text-[var(--tg-theme-text-color)]')}>
-            {bestScore}
+            {/* Монтируем после сохранения, иначе компонент прочитал бы старый рекорд до записи */}
+            {isScoreSaved ? <BestScoreDisplay /> : '...'}
           </p>
         </div>
 
@@ -152,4 +184,4 @@ export function GameOverWidget() {
       </div>
     </div>
   );
-}
+};

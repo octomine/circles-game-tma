@@ -9,8 +9,9 @@ import {
   type PropsWithChildren,
 } from 'react';
 
-const PROJECT_ID: number = 31261; // заменить на реальный projectId
-const PUBLIC_TOKEN: string = 'eLjgUwb4xGowhrdI2LcfU1m28J89VCor'; // заменить на реальный publicToken
+// Значения проекта из панели GamePush (Настройки проекта).
+const PROJECT_ID: number = 31261;
+const PUBLIC_TOKEN: string = 'eLjgUwb4xGowhrdI2LcfU1m28J89VCor';
 
 // Плейсхолдер токена: по нему понимаем, что конфиг ещё не заполнен.
 const PUBLIC_TOKEN_PLACEHOLDER = 'REPLACE_ME';
@@ -36,14 +37,28 @@ const SDK_MIRRORS = [
 const MIRROR_PROBE_TIMEOUT_MS = 5000;
 
 /**
+ * Хранилище, с которым синхронизируется прогресс игрока.
+ * 'cloud' — облако самого GamePush (нужно там, где у площадки нет своего облака).
+ */
+export type GamePushStorage = 'preferred' | 'cloud' | 'platform' | 'local';
+
+/**
  * Минимальный контракт SDK: внешний скрипт без типов, поэтому описываем только то,
  * что реально используем. По мере надобности расширяем (ads, leaderboard, achievements).
  */
+export interface GamePushPlayer {
+  /** Промис синхронизации игрока с сервером GamePush. */
+  ready: Promise<unknown>;
+  /** Значение поля игрока; поля задаются в панели GamePush. */
+  get: (key: string) => unknown;
+  /** Задать значение поля игрока. */
+  set: (key: string, value: number | string | boolean) => void;
+  /** Сохранить изменения; без опций используется хранилище из панели GamePush. */
+  sync: (options?: { storage?: GamePushStorage; override?: boolean }) => Promise<unknown>;
+}
+
 export interface GamePushInstance {
-  player: {
-    /** Промис синхронизации игрока с сервером GamePush. */
-    ready: Promise<unknown>;
-  };
+  player: GamePushPlayer;
 }
 
 export interface GamePushContextValue {

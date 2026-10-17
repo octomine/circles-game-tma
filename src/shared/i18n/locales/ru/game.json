@@ -9,6 +9,7 @@
     "title": "Игра окончена",
     "finalScoreLabel": "Ваш счёт",
     "bestScoreLabel": "Лучший результат",
+    "bestScoreRecord": "Рекорд: {score}",
     "newRecord": "🏆 Новый рекорд!"
   },
   "colors": {
