@@ -25,37 +25,28 @@ export const GameOverWidget = () => {
   const [isScoreSaved, setIsScoreSaved] = useState(false);
   const [displayedScore, setDisplayedScore] = useState(0);
 
-  // Счёт, который уже успешно ушёл в облако: защита от повторного прогона эффекта.
-  const savedScoreRef = useRef<number | null>(null);
+  // Защита от двойного сохранения: StrictMode прогоняет эффект дважды.
+  const didSaveRef = useRef(false);
 
-  // Сохраняем рекорд сразу при появлении экрана: кнопка «Повторить» сбрасывает счёт,
-  // поэтому сохранять при клике было бы поздно.
   useEffect(() => {
-    let cancelled = false;
+    if (didSaveRef.current) return;
 
-    // Эффект перезапускается, когда облако стало доступно (saveScore сменил ссылку).
-    // Повторно сохранять тот же счёт не нужно, иначе бейдж «Новый рекорд» сбросился бы.
-    if (savedScoreRef.current === score) {
-      return () => {
-        cancelled = true;
-      };
-    }
+    didSaveRef.current = true;
 
+    // Сохраняем сразу при появлении экрана: кнопка «Играть снова» сбрасывает счёт,
+    // поэтому сохранять при клике было бы поздно.
+    // Флага отмены здесь нет намеренно: в StrictMode второй прогон эффекта выходит
+    // по didSaveRef, и отмена первого прогона оставила бы экран без результата.
     void saveScore(score).then((result) => {
-      if (cancelled) return;
-
-      // Запоминаем только успех: при ошибке эффект должен повторить попытку.
-      if (result.success) {
-        savedScoreRef.current = score;
+      // SDK ещё не готов или синхронизация упала: снимаем флаг, чтобы попытка
+      // повторилась, когда облако станет доступно (saveScore сменит ссылку).
+      if (!result.success) {
+        didSaveRef.current = false;
       }
 
       setIsNewRecord(result.success && result.isNewRecord);
       setIsScoreSaved(true);
     });
-
-    return () => {
-      cancelled = true;
-    };
   }, [score, saveScore]);
 
   // Анимация "накрутки" счёта
@@ -91,6 +82,10 @@ export const GameOverWidget = () => {
     setScreen('game');
   };
 
+  const handleOpenLeaderboard = () => {
+    setScreen('leaderboard');
+  };
+
   const handleGoToMenu = () => {
     reset();
     setScreen('menu');
@@ -120,8 +115,8 @@ export const GameOverWidget = () => {
           {tGame('gameOver.title')}
         </h1>
 
-        {/* Финальный счёт */}
-        <div className="mb-8 w-full text-center">
+        {/* Финальный счёт текущей сессии */}
+        <div className="mb-6 w-full text-center">
           <p
             className={cn('text-sm tracking-wider uppercase', 'text-[var(--tg-theme-hint-color)]')}
           >
@@ -134,18 +129,30 @@ export const GameOverWidget = () => {
           </p>
         </div>
 
-        {/* Лучший результат */}
+        {/* Плашка нового рекорда: только когда результат побил прежний */}
+        {isNewRecord && (
+          <div
+            className={cn(
+              'mb-6 w-full rounded-xl p-3 text-center',
+              'bg-[var(--tg-theme-button-color)]/20',
+              'animate-pulse'
+            )}
+          >
+            <p className="text-lg font-bold">{tGame('gameOver.newRecord')}</p>
+          </div>
+        )}
+
+        {/* Лучший счёт */}
         <div
           className={cn(
             'mb-8 w-full rounded-xl p-4 text-center',
-            'bg-[var(--tg-theme-secondary-bg-color)]',
-            isNewRecord && 'animate-pulse'
+            'bg-[var(--tg-theme-secondary-bg-color)]'
           )}
         >
           <p
             className={cn('text-sm tracking-wider uppercase', 'text-[var(--tg-theme-hint-color)]')}
           >
-            {isNewRecord ? tGame('gameOver.newRecord') : tGame('gameOver.bestScoreLabel')}
+            {tGame('gameOver.bestScoreTitle')}
           </p>
           <p className={cn('text-3xl font-bold tabular-nums', 'text-[var(--tg-theme-text-color)]')}>
             {/* Монтируем после сохранения, иначе компонент прочитал бы старый рекорд до записи */}
@@ -166,6 +173,19 @@ export const GameOverWidget = () => {
             )}
           >
             {tCommon('buttons.retry')} 🔄
+          </button>
+
+          <button
+            onClick={handleOpenLeaderboard}
+            className={cn(
+              'w-full rounded-xl',
+              'bg-[var(--tg-theme-secondary-bg-color)]',
+              'px-6 py-4 text-lg font-bold',
+              'text-[var(--tg-theme-text-color)]',
+              'transition-all active:scale-95'
+            )}
+          >
+            {tCommon('buttons.leaderboard')} 🏆
           </button>
 
           <button

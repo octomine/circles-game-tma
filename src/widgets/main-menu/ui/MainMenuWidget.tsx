@@ -20,6 +20,10 @@ export function MainMenuWidget() {
     setScreen('game');
   };
 
+  const handleOpenLeaderboard = () => {
+    setScreen('leaderboard');
+  };
+
   return (
     <div
       className={cn(
@@ -63,6 +67,20 @@ export function MainMenuWidget() {
         )}
       >
         {tCommon('buttons.play')} 🎮
+      </button>
+
+      {/* Лидерборд: отдельный экран, доступен и из меню, и после игры */}
+      <button
+        onClick={handleOpenLeaderboard}
+        className={cn(
+          'mt-3 w-full max-w-xs rounded-xl',
+          'bg-[var(--tg-theme-secondary-bg-color)]',
+          'px-6 py-4 text-lg font-bold',
+          'text-[var(--tg-theme-text-color)]',
+          'transition-all active:opacity-80'
+        )}
+      >
+        {tCommon('buttons.leaderboard')} 🏆
       </button>
     </div>
   );

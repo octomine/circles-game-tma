@@ -8,7 +8,7 @@
   "gameOver": {
     "title": "Игра окончена",
     "finalScoreLabel": "Ваш счёт",
-    "bestScoreLabel": "Лучший результат",
+    "bestScoreTitle": "Лучший счёт",
     "bestScoreRecord": "Рекорд: {score}",
     "newRecord": "🏆 Новый рекорд!"
   },
