@@ -1,21 +1,12 @@
+import { toSafeNumber } from '@/shared/lib/number';
+
 import { FALLBACK_BEST_SCORE_KEY } from './constants';
 
 /**
  * Приводит значение поля SDK к числу: внешний SDK может вернуть undefined, строку
  * или битое значение, поэтому всё нечисловое считаем нулём.
  */
-export const toScoreNumber = (value: unknown): number => {
-  if (typeof value === 'number') {
-    return Number.isFinite(value) ? value : 0;
-  }
-
-  if (typeof value === 'string') {
-    const parsed = Number.parseInt(value, 10);
-    return Number.isFinite(parsed) ? parsed : 0;
-  }
-
-  return 0;
-};
+export const toScoreNumber = (value: unknown): number => toSafeNumber(value);
 
 /** Читает локальный рекорд; null — если значения ещё нет. */
 export const readFallbackBestScore = (): number | null => {

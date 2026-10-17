@@ -57,8 +57,76 @@ export interface GamePushPlayer {
   sync: (options?: { storage?: GamePushStorage; override?: boolean }) => Promise<unknown>;
 }
 
+/**
+ * Направление сортировки лидерборда: DESC — большие значения первыми.
+ */
+export type GamePushLeaderboardOrder = 'DESC' | 'ASC';
+
+/**
+ * Показывать ли текущего игрока в списке, если он не попал в топ.
+ */
+export type GamePushLeaderboardWithMe = 'none' | 'first' | 'last';
+
+/**
+ * Игрок в ответе лидерборда. id/name/avatar/position — базовые поля SDK,
+ * а score и прочие ключи — поля проекта из панели GamePush, поэтому тип неизвестен.
+ */
+export interface GamePushLeaderboardPlayer {
+  id: number;
+  name: string;
+  avatar: string;
+  /** Место в таблице, начиная с 1. */
+  position: number;
+  /** Значение поля лидерборда; нормализуется на стороне фичи. */
+  score?: unknown;
+  [field: string]: unknown;
+}
+
+export interface GamePushLeaderboardFetchOptions {
+  /** Сортировка по полям слева направо. */
+  orderBy?: string[];
+  order?: GamePushLeaderboardOrder;
+  /** Количество игроков в списке. */
+  limit?: number;
+  /** Дополнительные поля помимо orderBy. */
+  includeFields?: string[];
+  withMe?: GamePushLeaderboardWithMe;
+  /** N ближайших игроков сверху и снизу, максимум 10. */
+  showNearest?: number;
+}
+
+/** Ответ gp.leaderboard.fetch. */
+export interface GamePushLeaderboardFetchResponse {
+  players: GamePushLeaderboardPlayer[];
+  fields?: string[];
+  topPlayers?: GamePushLeaderboardPlayer[];
+  abovePlayers?: GamePushLeaderboardPlayer[];
+  belowPlayers?: GamePushLeaderboardPlayer[];
+  /** Данные моего игрока с позицией (появляется при withMe/showNearest). */
+  player?: GamePushLeaderboardPlayer | null;
+  countOfPlayersAbove?: number;
+  countOfTopPlayers?: number;
+}
+
+/** Ответ gp.leaderboard.fetchPlayerRating. */
+export interface GamePushLeaderboardRatingResponse {
+  /** Данные моего игрока с позицией. */
+  player?: GamePushLeaderboardPlayer | null;
+  fields?: string[];
+  abovePlayers?: GamePushLeaderboardPlayer[];
+  belowPlayers?: GamePushLeaderboardPlayer[];
+}
+
+export interface GamePushLeaderboard {
+  fetch: (options?: GamePushLeaderboardFetchOptions) => Promise<GamePushLeaderboardFetchResponse>;
+  fetchPlayerRating: (
+    options?: Omit<GamePushLeaderboardFetchOptions, 'limit' | 'withMe'>
+  ) => Promise<GamePushLeaderboardRatingResponse>;
+}
+
 export interface GamePushInstance {
   player: GamePushPlayer;
+  leaderboard: GamePushLeaderboard;
 }
 
 export interface GamePushContextValue {
