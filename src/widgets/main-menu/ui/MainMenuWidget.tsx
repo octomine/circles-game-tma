@@ -1,21 +1,24 @@
 'use client';
 
+import { Cog6ToothIcon } from '@heroicons/react/24/outline';
+import { TrophyIcon } from '@heroicons/react/24/solid';
 import { useTranslations } from 'next-intl';
 
 import { useGameSessionStore } from '@/entities/game-session';
-import { cn } from '@/shared';
+import { BestScoreDisplay } from '@/entities/player-score';
 import { useGameNavigation } from '@/shared/navigation';
+import { AnimatedBackground, Button, Card, Text, Title } from '@/shared/ui';
 
-export function MainMenuWidget() {
+export const MainMenuWidget = () => {
   const tMenu = useTranslations('menu');
   const tCommon = useTranslations('common');
 
   const { setScreen } = useGameNavigation();
 
-  const score = useGameSessionStore((state) => state.score);
   const startGame = useGameSessionStore((state) => state.startGame);
 
   const handleStartGame = () => {
+    // startGame() переводит сессию в 'playing': без него игровой цикл и HUD не запустятся.
     startGame();
     setScreen('game');
   };
@@ -24,64 +27,50 @@ export function MainMenuWidget() {
     setScreen('leaderboard');
   };
 
+  const handleOpenSettings = () => {
+    // TODO: открыть экран настроек, когда он появится в GameScreen.
+  };
+
   return (
-    <div
-      className={cn(
-        'flex h-screen w-full flex-col items-center justify-center',
-        'bg-[var(--tg-theme-bg-color)]',
-        'p-6',
-        'text-[var(--tg-theme-text-color)]'
-      )}
-    >
-      {/* Логотип / Название */}
-      <h1 className={cn('mb-2 text-4xl font-extrabold', 'text-[var(--tg-theme-button-color)]')}>
-        {tMenu('title')}
-      </h1>
+    <div className="relative min-h-screen w-full overflow-hidden">
+      <AnimatedBackground />
 
-      {/* Приветствие */}
-      <p className="mb-1 text-lg">{tMenu('greeting', { name: tCommon('player') })} 👋</p>
+      <div className="relative z-10 flex min-h-screen flex-col items-center justify-center px-6">
+        <Button
+          variant="icon"
+          aria-label={tMenu('settingsLabel')}
+          onClick={handleOpenSettings}
+          className="absolute top-6 right-6"
+        >
+          <Cog6ToothIcon className="h-6 w-6" />
+        </Button>
 
-      {/* Статистика */}
-      <div
-        className={cn(
-          'mb-8 w-full max-w-xs rounded-xl',
-          'bg-[var(--tg-theme-secondary-bg-color)]',
-          'p-4 text-center'
-        )}
-      >
-        <p className={cn('text-sm tracking-wider uppercase', 'text-[var(--tg-theme-hint-color)]')}>
-          {tMenu('currentScore')}
-        </p>
-        <p className="text-3xl font-bold">{score}</p>
+        <Title as="h1" className="mb-12 text-center text-5xl md:text-6xl">
+          {tMenu('titleFirst')}{' '}
+          <span className="from-primary bg-gradient-to-r to-[#EC4899] bg-clip-text text-transparent">
+            {tMenu('titleSecond')}
+          </span>
+        </Title>
+
+        <Card className="mb-12 w-full max-w-xs py-6 text-center">
+          <TrophyIcon className="text-gold mx-auto mb-2 h-10 w-10" />
+          <Text className="mb-1 text-xs tracking-widest uppercase">{tMenu('bestScoreLabel')}</Text>
+          <BestScoreDisplay
+            valueOnly
+            className="text-text block text-4xl font-black tabular-nums"
+          />
+        </Card>
+
+        <div className="flex w-full max-w-xs flex-col gap-4">
+          <Button variant="primary" size="lg" className="w-full text-xl" onClick={handleStartGame}>
+            {tCommon('buttons.play')}
+          </Button>
+
+          <Button variant="secondary" size="md" className="w-full" onClick={handleOpenLeaderboard}>
+            {tCommon('buttons.leaderboard')}
+          </Button>
+        </div>
       </div>
-
-      {/* Кнопка действия */}
-      <button
-        onClick={handleStartGame}
-        className={cn(
-          'w-full max-w-xs rounded-xl',
-          'bg-[var(--tg-theme-button-color)]',
-          'px-6 py-4 text-lg font-bold',
-          'text-[var(--tg-theme-button-text-color)]',
-          'shadow-lg transition-all active:opacity-80'
-        )}
-      >
-        {tCommon('buttons.play')} 🎮
-      </button>
-
-      {/* Лидерборд: отдельный экран, доступен и из меню, и после игры */}
-      <button
-        onClick={handleOpenLeaderboard}
-        className={cn(
-          'mt-3 w-full max-w-xs rounded-xl',
-          'bg-[var(--tg-theme-secondary-bg-color)]',
-          'px-6 py-4 text-lg font-bold',
-          'text-[var(--tg-theme-text-color)]',
-          'transition-all active:opacity-80'
-        )}
-      >
-        {tCommon('buttons.leaderboard')} 🏆
-      </button>
     </div>
   );
-}
+};

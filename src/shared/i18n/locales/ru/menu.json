@@ -1,8 +1,6 @@
 {
-  "title": "Color Clash",
-  "subtitle": "Найди нужный цвет",
-  "description": "Кликай по кругам правильного цвета и набирай очки!",
-  "greeting": "Привет, {name}!",
-  "yourId": "Твой ID",
-  "currentScore": "Текущий счёт"
+  "titleFirst": "Поймай",
+  "titleSecond": "Цвет",
+  "bestScoreLabel": "Твой рекорд",
+  "settingsLabel": "Настройки"
 }
