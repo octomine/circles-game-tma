@@ -1,8 +1,11 @@
 'use client';
 
+import { ExclamationTriangleIcon, UserGroupIcon } from '@heroicons/react/24/outline';
+import { TrophyIcon } from '@heroicons/react/24/solid';
 import { useTranslations } from 'next-intl';
 
 import { cn } from '@/shared';
+import { Button, Text } from '@/shared/ui';
 
 import type { LeaderboardPlayer } from '../model/types';
 
@@ -14,6 +17,71 @@ interface LeaderboardListProps {
   onRetry: () => void;
 }
 
+interface LeaderboardRowProps {
+  player: LeaderboardPlayer;
+  isMe: boolean;
+}
+
+// Сколько строк-заглушек показываем во время загрузки: примерно высота первого экрана.
+const SKELETON_ROWS = 5;
+
+// Подсветка призовых мест в списке: золото, серебро, бронза.
+const TOP_POSITION_CLASSES: Record<number, string> = {
+  1: 'text-gold',
+  2: 'text-slate-300',
+  3: 'text-amber-600',
+};
+
+/**
+ * Строка списка. Вынесена отдельно, чтобы тяжёлый рендер списка не разрастался
+ * в один компонент и подсветку места не приходилось считать в общем теле.
+ */
+const LeaderboardRow = ({ player, isMe }: LeaderboardRowProps) => {
+  const positionClassName = TOP_POSITION_CLASSES[player.position];
+  // Аватар приходит с внешнего хостинга GamePush, а проект собирается статикой:
+  // next/image потребовал бы перечислять домены в remotePatterns.
+  // Читаем в локальную константу: так сужение типа работает без приведения.
+  const avatar = player.avatar;
+  const initial = player.name.charAt(0).toUpperCase();
+
+  return (
+    <div
+      className={cn(
+        'flex items-center gap-3 rounded-xl border border-transparent p-3 transition-colors',
+        // Свою строку выделяем неоновой обводкой: так своё место видно прямо в списке.
+        isMe
+          ? 'bg-primary/10 border-primary/50 shadow-[0_0_15px_rgba(59,130,246,0.2)]'
+          : 'bg-surface'
+      )}
+    >
+      <div className={cn('text-text-muted w-6 text-center font-bold', positionClassName)}>
+        {/* У лидера трофей вместо цифры: в слот w-6 они вдвоём не помещаются,
+            а место остаётся доступным скринридеру через sr-only. */}
+        {player.position === 1 ? (
+          <>
+            <TrophyIcon className="mx-auto h-5 w-5" aria-hidden />
+            <span className="sr-only">{player.position}</span>
+          </>
+        ) : (
+          player.position
+        )}
+      </div>
+
+      {avatar ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={avatar} alt="" loading="lazy" className="h-10 w-10 rounded-full object-cover" />
+      ) : (
+        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-sm font-bold">
+          {initial}
+        </div>
+      )}
+
+      <div className="flex-1 truncate font-bold">{player.name}</div>
+      <div className="text-primary font-black tabular-nums">{player.score}</div>
+    </div>
+  );
+};
+
 /**
  * Презентационный список лидерборда: только рендер, запросы делает вызывающий экран.
  */
@@ -22,64 +90,45 @@ export const LeaderboardList = ({ players, me, loading, error, onRetry }: Leader
 
   if (loading) {
     return (
-      <p className={cn('py-8 text-center', 'text-[var(--tg-theme-hint-color)]')}>{t('loading')}</p>
+      <div className="flex flex-col gap-2">
+        {Array.from({ length: SKELETON_ROWS }, (_, index) => (
+          <div key={index} className="h-14 animate-pulse rounded-xl bg-white/5" />
+        ))}
+      </div>
     );
   }
 
   if (error) {
     return (
       <div className="flex flex-col items-center gap-3 py-8">
-        <p className={cn('text-center', 'text-[var(--tg-theme-hint-color)]')}>{t('error')}</p>
-        <button
-          onClick={onRetry}
-          className={cn(
-            'rounded-xl px-6 py-3 font-bold',
-            'bg-[var(--tg-theme-button-color)]',
-            'text-[var(--tg-theme-button-text-color)]',
-            'transition-all active:scale-95'
-          )}
-        >
+        <ExclamationTriangleIcon className="text-danger h-10 w-10" aria-hidden />
+        <Text className="text-center">{t('error')}</Text>
+        <Button variant="primary" size="sm" onClick={onRetry}>
           {t('retry')}
-        </button>
+        </Button>
       </div>
     );
   }
 
   if (players.length === 0) {
     return (
-      <p className={cn('py-8 text-center', 'text-[var(--tg-theme-hint-color)]')}>{t('empty')}</p>
+      <div className="flex flex-col items-center gap-3 py-8">
+        <UserGroupIcon className="text-text-muted h-10 w-10" aria-hidden />
+        <Text className="text-center">{t('empty')}</Text>
+      </div>
     );
   }
 
   return (
-    <table className="w-full border-collapse text-left">
-      <thead>
-        <tr className={cn('text-xs tracking-wider uppercase', 'text-[var(--tg-theme-hint-color)]')}>
-          <th className="py-2 pr-2 font-medium">{t('columns.position')}</th>
-          <th className="py-2 pr-2 font-medium">{t('columns.name')}</th>
-          <th className="py-2 text-right font-medium">{t('columns.score')}</th>
-        </tr>
-      </thead>
-      <tbody>
-        {players.map((player) => {
+    <div className="flex flex-col gap-2">
+      {players.map((player) => (
+        <LeaderboardRow
+          key={player.id}
+          player={player}
           // Строку текущего игрока подсвечиваем: так его место видно прямо в списке.
-          const isMe = me !== null && player.id === me.id;
-
-          return (
-            <tr
-              key={player.id}
-              className={cn(
-                'border-t border-white/10',
-                isMe && 'bg-[var(--tg-theme-button-color)]/20 font-bold'
-              )}
-            >
-              <td className="py-2 pr-2 tabular-nums">{player.position}</td>
-              <td className="py-2 pr-2 break-all">{player.name}</td>
-              <td className="py-2 text-right tabular-nums">{player.score}</td>
-            </tr>
-          );
-        })}
-      </tbody>
-    </table>
+          isMe={me !== null && player.id === me.id}
+        />
+      ))}
+    </div>
   );
 };
