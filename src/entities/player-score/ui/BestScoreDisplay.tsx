@@ -8,7 +8,19 @@ import { useGamePush } from '@/shared/gamepush';
 import { SCORE_FIELD_KEY } from '../model/constants';
 import { readFallbackBestScore, toScoreNumber } from '../model/score-storage';
 
-export const BestScoreDisplay = () => {
+export interface BestScoreDisplayProps {
+  className?: string;
+  /** Показать только число, без подписи «Рекорд: {score}». */
+  valueOnly?: boolean;
+  /** Что показать, пока рекорд не прочитан. */
+  placeholder?: string;
+}
+
+export const BestScoreDisplay = ({
+  className,
+  valueOnly = false,
+  placeholder = '...',
+}: BestScoreDisplayProps) => {
   const t = useTranslations('game');
 
   const { gp, isReady } = useGamePush();
@@ -31,8 +43,13 @@ export const BestScoreDisplay = () => {
 
   // Значение ещё не получено — показываем плейсхолдер вместо нуля.
   if (bestScore === null) {
-    return <>...</>;
+    return <span className={className}>{placeholder}</span>;
   }
 
-  return <>{t('gameOver.bestScoreRecord', { score: bestScore })}</>;
+  // className навешиваем на span в обоих режимах: снаружи задают размеры и цвет числа.
+  return (
+    <span className={className}>
+      {valueOnly ? bestScore : t('gameOver.bestScoreRecord', { score: bestScore })}
+    </span>
+  );
 };

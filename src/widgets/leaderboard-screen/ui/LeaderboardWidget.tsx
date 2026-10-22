@@ -1,12 +1,13 @@
 'use client';
 
+import { ArrowPathIcon } from '@heroicons/react/24/outline';
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 
 import { LeaderboardList, useFetchLeaderboard, usePlayerRating } from '@/features/leaderboard';
-import { cn } from '@/shared';
 import { useGamePush } from '@/shared/gamepush';
 import { useGameNavigation } from '@/shared/navigation';
+import { AnimatedBackground, Button, Card, Text, Title } from '@/shared/ui';
 
 export const LeaderboardWidget = () => {
   const t = useTranslations('leaderboard');
@@ -40,7 +41,7 @@ export const LeaderboardWidget = () => {
   }, [fetchLeaderboard, fetchPlayerRating]);
 
   // Мой игрок приходит отдельным полем и уже исключён из списка,
-  // поэтому его строку добавляем сами — иначе подсветить себя в таблице было бы нечем.
+  // поэтому его строку добавляем сами — иначе подсветить себя в списке было бы нечем.
   const rows = useMemo(() => {
     const hasMe = me !== null && players.some((player) => player.id === me.id);
     const merged = hasMe || me === null ? players : [...players, me];
@@ -48,73 +49,45 @@ export const LeaderboardWidget = () => {
     return [...merged].sort((first, second) => first.position - second.position);
   }, [players, me]);
 
-  const place = rating?.player?.position ?? null;
-  const placeLabel = place === null ? t('placeUnknown') : t('yourPlace', { place });
+  const place = rating?.player?.position || '-';
+  // Пока SDK грузится, список ещё пуст: без этого на кадр мелькал бы экран «Пока никого нет».
+  const isListLoading = loading || !isReady;
 
   return (
-    <div
-      className={cn(
-        'flex h-screen w-full flex-col items-center',
-        'bg-[var(--tg-theme-bg-color)]',
-        'p-6',
-        'text-[var(--tg-theme-text-color)]'
-      )}
-    >
-      <h1 className={cn('mb-4 text-3xl font-extrabold', 'text-[var(--tg-theme-button-color)]')}>
-        {t('title')}
-      </h1>
+    <div className="relative flex min-h-screen flex-col p-6">
+      <AnimatedBackground />
 
-      {/* Компактный блок с местом текущего игрока */}
-      <div
-        className={cn(
-          'mb-4 w-full max-w-md rounded-xl p-4 text-center',
-          'bg-[var(--tg-theme-secondary-bg-color)]'
-        )}
-      >
-        <p className="text-xl font-bold">{placeLabel}</p>
-      </div>
+      <div className="relative z-10 mx-auto flex w-full max-w-md flex-1 flex-col">
+        <div className="mb-6 flex items-center justify-between">
+          <Title as="h1">{t('title')}</Title>
 
-      {/* Список игроков */}
-      <div
-        className={cn(
-          'mb-4 w-full max-w-md flex-1 overflow-y-auto rounded-xl p-4',
-          'bg-[var(--tg-theme-secondary-bg-color)]'
-        )}
-      >
+          <Button variant="icon" aria-label={t('refresh')} onClick={handleRefresh}>
+            <ArrowPathIcon className="h-6 w-6" />
+          </Button>
+        </div>
+
+        {/* Компактный блок с местом текущего игрока */}
+        <Card className="mb-6 p-4 text-center">
+          <Text className="text-lg">
+            {t.rich('yourPlace', {
+              place,
+              b: (chunks) => <span className="text-primary font-black">{chunks}</span>,
+            })}
+          </Text>
+        </Card>
+
+        {/* Список игроков */}
         <LeaderboardList
           players={rows}
           me={me}
-          loading={loading}
+          loading={isListLoading}
           error={error}
           onRetry={fetchLeaderboard}
         />
-      </div>
 
-      {/* Кнопки */}
-      <div className="flex w-full max-w-md flex-col gap-3">
-        <button
-          onClick={handleRefresh}
-          className={cn(
-            'w-full rounded-xl px-6 py-4 text-lg font-bold',
-            'bg-[var(--tg-theme-button-color)]',
-            'text-[var(--tg-theme-button-text-color)]',
-            'transition-all active:scale-95'
-          )}
-        >
-          {t('refresh')} 🔄
-        </button>
-
-        <button
-          onClick={goBack}
-          className={cn(
-            'w-full rounded-xl px-6 py-4 text-lg font-bold',
-            'bg-[var(--tg-theme-secondary-bg-color)]',
-            'text-[var(--tg-theme-text-color)]',
-            'transition-all active:scale-95'
-          )}
-        >
-          {tCommon('buttons.back')} ←
-        </button>
+        <Button variant="secondary" className="mt-auto w-full" onClick={goBack}>
+          {tCommon('buttons.back')}
+        </Button>
       </div>
     </div>
   );

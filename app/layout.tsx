@@ -1,18 +1,18 @@
 import type { Metadata } from 'next';
-import { Geist, Geist_Mono } from 'next/font/google';
-import '../src/app/styles/globals.css';
+import { Nunito } from 'next/font/google';
 import { getLocale, getMessages } from 'next-intl/server';
+import type { ReactNode } from 'react';
+
+import '../src/app/styles/globals.css';
 
 import { AppProviders } from './providers';
 
-const geistSans = Geist({
-  variable: '--font-geist-sans',
-  subsets: ['latin'],
-});
-
-const geistMono = Geist_Mono({
-  variable: '--font-geist-mono',
-  subsets: ['latin'],
+// Кириллицу подключаем явно: без неё русский текст падает на системный шрифт.
+// variable отдаёт CSS-переменную --font-nunito, из которой тема собирает --font-sans.
+const nunito = Nunito({
+  variable: '--font-nunito',
+  subsets: ['cyrillic', 'latin'],
+  weight: ['400', '700', '900'],
 });
 
 export const metadata: Metadata = {
@@ -23,14 +23,14 @@ export const metadata: Metadata = {
 export default async function RootLayout({
   children,
 }: Readonly<{
-  children: React.ReactNode;
+  children: ReactNode;
 }>) {
   const locale = await getLocale();
   const messages = await getMessages();
 
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
-      <body className="flex min-h-full flex-col">
+    <html lang="en" className={`${nunito.variable} h-full antialiased`}>
+      <body className="bg-background text-text flex min-h-full flex-col font-sans">
         <AppProviders messages={messages} locale={locale}>
           {children}
         </AppProviders>
