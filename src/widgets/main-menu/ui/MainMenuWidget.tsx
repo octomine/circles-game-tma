@@ -7,7 +7,7 @@ import { useTranslations } from 'next-intl';
 import { useGameSessionStore } from '@/entities/game-session';
 import { BestScoreDisplay } from '@/entities/player-score';
 import { useGameNavigation } from '@/shared/navigation';
-import { AnimatedBackground, Button, Card, Text, Title } from '@/shared/ui';
+import { AnimatedBackground, AnimatedStack, Button, Card, Text, Title } from '@/shared/ui';
 
 export const MainMenuWidget = () => {
   const tMenu = useTranslations('menu');
@@ -61,7 +61,10 @@ export const MainMenuWidget = () => {
           />
         </Card>
 
-        <div className="flex w-full max-w-xs flex-col gap-4">
+        {/* delay=0.2 — кнопки появляются после заголовка и карточки.
+            Сами кнопки motion-компоненты со своими variants, поэтому
+            каскад подхватывается без дополнительных обёрток. */}
+        <AnimatedStack className="flex w-full max-w-xs flex-col gap-4" delay={0.2}>
           <Button variant="primary" size="lg" className="w-full text-xl" onClick={handleStartGame}>
             {tCommon('buttons.play')}
           </Button>
@@ -69,7 +72,7 @@ export const MainMenuWidget = () => {
           <Button variant="secondary" size="md" className="w-full" onClick={handleOpenLeaderboard}>
             {tCommon('buttons.leaderboard')}
           </Button>
-        </div>
+        </AnimatedStack>
       </div>
     </div>
   );
