@@ -1,6 +1,7 @@
 'use client';
 
 import { ArrowPathIcon } from '@heroicons/react/24/outline';
+import * as motion from 'motion/react-client';
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 
@@ -62,7 +63,19 @@ export const LeaderboardWidget = () => {
           <Title as="h1">{t('title')}</Title>
 
           <Button variant="icon" aria-label={t('refresh')} onClick={handleRefresh}>
-            <ArrowPathIcon className="h-6 w-6" />
+            {/* Пока идёт загрузка (включая ожидание готовности SDK) вращение
+                бесконечно; когда данные пришли, motion доигрывает возврат
+                к rotate: 0 за 0.3s — иконка тормозит плавно, а не рывком. */}
+            <motion.div
+              animate={isListLoading ? { rotate: 360 } : { rotate: 0 }}
+              transition={
+                isListLoading
+                  ? { repeat: Infinity, duration: 1, ease: 'linear' }
+                  : { duration: 0.3 }
+              }
+            >
+              <ArrowPathIcon className="h-6 w-6" />
+            </motion.div>
           </Button>
         </div>
 
