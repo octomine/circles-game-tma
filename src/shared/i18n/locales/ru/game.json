@@ -3,6 +3,7 @@
     "score": "Счёт",
     "lives": "{count, plural, =0 {Нет жизней} one {# жизнь} few {# жизни} other {# жизней}}",
     "targetColor": "Найди цвет",
+    "shield": "Щит",
     "timeLeft": "{seconds, plural, =0 {Сейчас} one {# секунда} few {# секунды} other {# секунд}}"
   },
   "gameOver": {

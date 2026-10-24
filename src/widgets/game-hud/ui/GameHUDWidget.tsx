@@ -1,11 +1,12 @@
 'use client';
 
-import { useGameSessionStore } from '@/entities/game-session';
+import { useGameSessionStore, ComboHistogram } from '@/entities/game-session';
 import { cn } from '@/shared';
 
 import { ScoreDisplay } from './ScoreDisplay';
 import { LivesDisplay } from './LivesDisplay';
 import { TargetColorIndicator } from './TargetColorIndicator';
+import { ShieldIndicator } from './ShieldIndicator';
 
 export function GameHUDWidget() {
   const status = useGameSessionStore((state) => state.status);
@@ -41,6 +42,18 @@ export function GameHUDWidget() {
         <div className="pointer-events-auto flex-shrink-0">
           <LivesDisplay />
         </div>
+      </div>
+
+      {/* Низ: статус щита и «лесенка» интервалов комбо */}
+      <div
+        className={cn(
+          'absolute inset-x-0 bottom-0',
+          'flex flex-col items-center gap-3',
+          'px-4 pb-[max(1rem,env(safe-area-inset-bottom))]'
+        )}
+      >
+        <ShieldIndicator />
+        <ComboHistogram />
       </div>
     </div>
   );
