@@ -7,7 +7,7 @@ import { useTranslations } from 'next-intl';
 import { useGameSessionStore } from '@/entities/game-session';
 import { BestScoreDisplay } from '@/entities/player-score';
 import { useGameNavigation } from '@/shared/navigation';
-import { AnimatedBackground, AnimatedStack, Button, Card, Text, Title } from '@/shared/ui';
+import { AnimatedStack, Button, Card, Text, Title } from '@/shared/ui';
 
 export const MainMenuWidget = () => {
   const tMenu = useTranslations('menu');
@@ -31,10 +31,10 @@ export const MainMenuWidget = () => {
     // TODO: открыть экран настроек, когда он появится в GameScreen.
   };
 
+  // Фон (AnimatedBackground) живёт в GameRouterView: сам экран прозрачный,
+  // иначе он перекрыл бы PixiJS-слой.
   return (
     <div className="relative min-h-screen w-full overflow-hidden">
-      <AnimatedBackground />
-
       <div className="relative z-10 flex min-h-screen flex-col items-center justify-center px-6">
         <Button
           variant="icon"

@@ -16,9 +16,11 @@ export function GameHUDWidget() {
   }
 
   return (
+    // absolute, а не fixed: экран обёрнут в motion.div, который на время
+    // переходов задаёт transform, и fixed-потомок спозиционировался бы от него.
     <div
       className={cn(
-        'fixed inset-0 z-10',
+        'absolute inset-0 z-10',
         'pointer-events-none',
         'p-4 pt-[max(1rem,env(safe-area-inset-top))]'
       )}
