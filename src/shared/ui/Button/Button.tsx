@@ -1,13 +1,21 @@
 'use client';
 
 import { type ComponentPropsWithoutRef, type ReactNode } from 'react';
+import { type Variants } from 'motion/react';
+import * as motion from 'motion/react-client';
 
 import { cn } from '@/shared/lib/cn';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'icon';
 export type ButtonSize = 'sm' | 'md' | 'lg';
 
-export interface ButtonProps extends Omit<ComponentPropsWithoutRef<'button'>, 'children'> {
+// Motion объявляет onDrag/onDragStart/onDragEnd/onAnimationStart со своей сигнатурой
+// (event, info), а не как DOM-обработчики, поэтому их приходится исключать:
+// иначе строгий TS не даст пробросить rest в motion.button.
+export interface ButtonProps extends Omit<
+  ComponentPropsWithoutRef<'button'>,
+  'children' | 'onDrag' | 'onDragStart' | 'onDragEnd' | 'onAnimationStart'
+> {
   variant?: ButtonVariant;
   size?: ButtonSize;
   className?: string;
@@ -34,6 +42,13 @@ const SIZE_CLASSES: Record<ButtonSize, string> = {
   lg: 'px-8 py-4 text-lg',
 };
 
+// Кнопка не управляет своим появлением: initial/animate задаёт родитель (AnimatedStack).
+// Свои variants нужны только чтобы Motion подхватил каскад по меткам hidden/visible.
+const BUTTON_VARIANTS: Variants = {
+  hidden: { opacity: 0, y: 10 },
+  visible: { opacity: 1, y: 0 },
+};
+
 /**
  * Базовая кнопка UI-Kit. У варианта icon размеры игнорируются: квадрат задаётся p-3.
  */
@@ -55,8 +70,18 @@ export const Button = ({
   );
 
   return (
-    <button type={type} className={classes} {...rest}>
+    // Motion анимирует transform (scale), а Tailwind в active — отдельное свойство
+    // translate, поэтому «физическое нажатие» и пружина не перезаписывают друг друга.
+    <motion.button
+      type={type}
+      className={classes}
+      variants={BUTTON_VARIANTS}
+      whileHover={{ scale: 1.03 }}
+      whileTap={{ scale: 0.97 }}
+      transition={{ type: 'spring', stiffness: 400, damping: 15 }}
+      {...rest}
+    >
       {children}
-    </button>
+    </motion.button>
   );
 };

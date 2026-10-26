@@ -127,9 +127,11 @@ export function GameCanvasWidget() {
   }, []);
 
   return (
+    // absolute, а не fixed: экран обёрнут в motion.div, который на время
+    // переходов задаёт transform, и fixed-потомок спозиционировался бы от него.
     <div
       ref={containerRef}
-      className="fixed inset-0 z-0 h-screen w-screen touch-none overflow-hidden"
+      className="absolute inset-0 z-0 h-full w-full touch-none overflow-hidden"
       style={{ backgroundColor: 'var(--tg-theme-bg-color, #1c1c1e)' }}
     />
   );

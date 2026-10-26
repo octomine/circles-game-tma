@@ -6,6 +6,7 @@ export const GAME_CONFIG = {
 
   // Жизни и время
   DEFAULT_LIVES: 3,
+  MAX_LIVES: 5, // потолок для бонуса extraLife с вехи комбо
   TIME_TO_CHANGE_COLOR_MS: 10000,
 
   // Круги

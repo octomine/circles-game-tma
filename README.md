@@ -1,293 +1,142 @@
 # 🎨 Поймай цвет
 
-> **Мини-игра внутри Telegram**, где нужно успевать кликать по кругам правильного цвета. Простая механика, но залипательный геймплей — попробуй побить свой рекорд!
-
 ![Next.js](https://img.shields.io/badge/Next.js-16-black?style=for-the-badge&logo=next.js)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?style=for-the-badge&logo=typescript)
-![PixiJS](https://img.shields.io/badge/PixiJS-8-orange?style=for-the-badge)
-![Telegram](https://img.shields.io/badge/Telegram-Mini_App-blue?style=for-the-badge&logo=telegram)
+![PixiJS](https://img.shields.io/badge/PixiJS-8-orange?style=for-the-badge&logo=pixijs)
 
 ---
 
-## 🎮 Попробовать
+## Что это
 
-🔗 **Онлайн:** [circles-game-tma.vercel.app](https://circles-game-tma.vercel.app)
+Мини-игра: нужно успевать кликать по кругам **целевого цвета**, пока не закончились жизни.
 
-Откройте ссылку в Telegram через [@color_clash_game_bot](https://t.me/color_clash_game_bot) или просто в мобильном браузере.
+Как устроено:
 
----
+- **Next.js 16 (App Router) в режиме статического экспорта** — в `next.config.ts` задано `output: 'export'`, `trailingSlash: true` и `assetPrefix: './'` для production-сборки. Приложение собирается в набор статических файлов, серверный рантайм не используется.
+- **Одна страница.** `app/page.tsx` рендерит `GameRouterView`; экраны (`menu` | `game` | `gameover` | `leaderboard`) переключаются React-состоянием, URL не меняется.
+- **Игровое поле — PixiJS 8 (WebGL)**, состояние — Zustand, анимации интерфейса — Motion, стили — Tailwind CSS v4, переводы — next-intl (сейчас только русский).
+- **Рекорд и лидерборд — через GamePush SDK** (облако GamePush) с локальным fallback в `localStorage`.
 
-## ✨ Что внутри
+Проверенные версии зависимостей (по установленным пакетам):
 
-- 🎯 **Залипательный геймплей** — кликай по кругам нужного цвета и собирай очки
-- 🌊 **Живые круги** — синусоидальная анимация роста/уменьшения + эффект "движения" через pivot
-- 💔 **Эффект потери жизни** — freeze-кадр и разбитое сердце при промахе
-- 🎨 **Разнообразие** — круги разного размера и с разным временем жизни (дисперсия)
-- 🎯 **Умный спавн** — гарантия появления нужного цвета при заполненном экране
-- 📱 **Нативный Telegram** — haptic feedback, темы, интеграция с WebApp API
-- 🖼️ **Плавная графика** — PixiJS на WebGL, эффекты частиц при попаданиях
-- ⭕ **Circular progress bar** — наглядный таймер до смены цвета вокруг индикатора
-- 🌍 **Мультиязычность** — русский, английский, латышский через `next-intl`
-- 🏆 **Сохранение рекордов** — лучший результат хранится в `localStorage`
-- 🎭 **Адаптация под Telegram** — автоматически подхватывает светлую/тёмную тему
-- 📊 **Чистая архитектура** — код организован по Feature-Sliced Design, игровые объекты — через ООП
-
----
-
-## 🛠️ Технологический стек
-
-| Что               | Чем                                                   |
-| ----------------- | ----------------------------------------------------- |
-| **Фреймворк**     | Next.js 16 (App Router)                               |
-| **Язык**          | TypeScript 5                                          |
-| **Графика**       | PixiJS 8 (WebGL)                                      |
-| **Состояние**     | Zustand                                               |
-| **Переводы**      | next-intl                                             |
-| **Стили**         | Tailwind CSS + shadcn/ui                              |
-| **Аналитика**     | Vercel Analytics + Speed Insights                     |
-| **Пакеты**        | pnpm                                                  |
-| **CI/CD**         | GitHub Actions + Vercel                               |
-| **Качество кода** | ESLint (flat config) + Prettier + Husky + lint-staged |
+| Пакет                 | Версия |
+| --------------------- | ------ |
+| `next`                | 16.2.9 |
+| `react` / `react-dom` | 19.2.4 |
+| `pixi.js`             | 8.19.0 |
+| `zustand`             | 5.0.14 |
+| `next-intl`           | 4.13.0 |
+| `motion`              | 14.6.0 |
+| `tailwindcss`         | 4.3.0  |
+| `typescript`          | 5.9.3  |
+| `eslint`              | 9.39.4 |
+| `prettier`            | 3.8.4  |
 
 ---
 
-## 📁 Как устроен проект
+## Возможности
 
-Проект построен по принципам **Feature-Sliced Design** — код разделён на слои по ответственности:
+### Геймплей
 
-```
-circles-game-tma/
-│
-├── app/                              # 🚪 Точки входа Next.js
-│   ├── layout.tsx                    #    Root layout с провайдерами
-│   ├── providers.tsx                 #    AppProviders (Intl + навигация)
-│   └── page.tsx                      #    Единственная точка входа (SPA)
-│
-└── src/
-    ├── pages/                        # 📄 Страницы (композиция виджетов)
-    │   ├── game/ui/GameView.tsx
-    │   └── game-router/ui/GameRouterView.tsx  # Свитчер экранов по состоянию
-    │
-    ├── widgets/                      # 🧩 Самостоятельные UI-блоки
-    │   ├── main-menu/                #    Главное меню
-    │   ├── game-canvas/              #    Игровое поле на PixiJS
-    │   │   ├── lib/                  #    Игровые объекты (ООП)
-    │   │   │   ├── GameObject.ts     #    Абстрактный базовый класс
-    │   │   │   ├── Circle.ts         #    Кликабельный круг
-    │   │   │   ├── Particle.ts       #    Визуальный эффект частицы
-    │   │   │   ├── CrackedHeart.ts   #    Эффект разбитого сердца 💔
-    │   │   │   └── index.ts
-    │   │   ├── hooks/
-    │   │   │   ├── useGameEngine.ts  #    Тонкий оркестратор игры
-    │   │   │   └── types.ts
-    │   │   └── ui/GameCanvasWidget.tsx
-    │   ├── game-hud/                 #    HUD во время игры
-    │   │   └── ui/
-    │   │       ├── GameHUDWidget.tsx
-    │   │       ├── ScoreDisplay.tsx
-    │   │       ├── LivesDisplay.tsx
-    │   │       └── TargetColorIndicator.tsx  # С circular progress bar
-    │   ├── game-over/                #    Экран окончания игры
-    │   └── telegram-debug/           #    Debug-виджет
-    │
-    ├── entities/                     # 🧬 Бизнес-сущности
-    │   └── game-session/             #    Игровая сессия
-    │       ├── model/
-    │       │   ├── gameSessionStore.ts  # Zustand стор
-    │       │   └── defaults.ts
-    │       ├── config/constants.ts   #    Вся конфигурация игры
-    │       └── types/
-    │
-    └── shared/                       # 🔧 Переиспользуемый код
-        ├── lib/
-        │   ├── cn.ts                 #    clsx + tailwind-merge
-        │   ├── best-score.ts         #    Работа с рекордами
-        │   ├── telegram/             #    Telegram SDK
-        │   │   ├── context.ts
-        │   │   ├── hooks/useTelegram.ts
-        │   │   └── TelegramProvider.tsx
-        │   └── telegram-mock.ts      #    Мок для разработки
-        ├── navigation/                #    Навигация без URL (состояние React)
-        │   ├── context.ts
-        │   ├── GameNavigationProvider.tsx
-        │   ├── useGameNavigation.ts
-        │   └── types.ts              #    GameScreen = 'menu' | 'game' | 'gameover'
-        └── i18n/                     #    Интернационализация
-            ├── config.ts
-            ├── request.ts
-            └── locales/ru/
-                ├── common.json
-                ├── menu.json
-                └── game.json
-```
+- **Попадание** — клик по кругу целевого цвета. **Промах** — клик по любому другому цвету.
+- **Круги** живут 2.5–7.5 с (`CIRCLE_LIFETIME_MS` 5000 ±50 %), радиус 50–150 px (`CIRCLE_RADIUS` 100 ±50 %), растут и убывают по синусоиде и меняют pivot в середине жизни. Новый круг спавнится каждые 500 мс игрового времени, максимум 20 кругов на экране.
+- **Умный спавн** — если на экране уже ≥5 кругов и среди них нет целевого цвета, следующий круг гарантированно будет целевым; иначе целевой цвет выпадает с шансом 30 %.
+- **Смена целевого цвета** каждые 10 с. В HUD — круговой таймер; последние 3 с индикатор краснеет.
+- **Комбо (Acceleration Streak)** — серия попаданий, каждое из которых быстрее предыдущего минимум на 20 мс. Клик чаще 80 мс для комбо игнорируется (анти-спам), пауза больше 2000 мс сбрасывает серию. Комбо сбрасывается и само, если с последнего попадания прошло больше, чем длился предыдущий интервал.
+- **Очки** — базово 10 за попадание, умножаются на множитель комбо: ×4 при комбо ≥7, ×3 при ≥5, ×2 при ≥3, иначе ×1.
+- **Вехи комбо:** комбо 3 → +1 жизнь (не выше 5), комбо 5 → щит. Щит гасит один промах целиком: без потери жизни и без сброса комбо. Вехи комбо 7 и 10 фиксируются, но бонусов за ними пока нет.
+- **Промах** — пауза 750 мс (`LOSE_LIFE_FREEZE_MS`), эффект разбитого сердца, −1 жизнь. После последней жизни игра уходит на экран результатов.
+- **Гистограмма интервалов** внизу HUD: завершённые столбцы синие, активный столбец золотой, пока укладывается в предыдущий интервал, и красный, когда перерос его (такой клик сбросит комбо).
+- **Пауза** — при скрытии вкладки игра встаёт на паузу, игровое время и комбо замирают; при возврате игра продолжается с того же места.
 
-### 🎮 Архитектура игровых объектов
+### Экраны
 
-Все игровые объекты наследуются от абстрактного `GameObject` и инкапсулируют свой жизненный цикл:
+- **Меню** — старт игры, текущий рекорд, переход в лидерборд, кнопка настроек (заглушка).
+- **Игра** — PixiJS-канвас и HUD: счёт, жизни, целевой цвет с круговым таймером, индикатор щита, гистограмма комбо.
+- **Результаты** — счёт с анимацией накрутки (30 шагов за 1.5 с), отметка «новый рекорд», сохранение результата, кнопки «Играть снова» / «Лидерборд» / «В меню».
+- **Лидерборд** — топ-20 по полю `score`, место текущего игрока и 5 ближайших соседей, кнопка обновления, повтор при ошибке загрузки.
+- Переходы между экранами — Motion (fade, zoom, свайпы), фон — анимированный градиент.
 
-```
-GameObject (абстрактный, extends PIXI.Graphics)
-│
-├── Circle           — кликабельный, учитывает freeze
-├── Particle         — визуальный эффект, обновляется при freeze
-└── CrackedHeart     — эффект потери жизни, обновляется при freeze
-```
+### Известные ограничения
 
-**Ключевые принципы:**
-
-- Каждый объект сам управляет своим жизненным циклом (`spawn` → `update` → `reset`)
-- Пулы объектов переиспользуются — никаких `new` в игровом цикле
-- Флаг `ignoresFreeze` разделяет интерактивные и визуальные объекты
-- `useGameEngine` — тонкий оркестратор, не содержит логики жизненного цикла
+- **Telegram-интеграция не подключена.** `TelegramProvider` написан и экспортируется, но не включён в дерево провайдеров (`AppProviders` собирает только GamePush, Intl и Navigation), поэтому тема, данные пользователя и haptics из Telegram WebApp сейчас не используются. Единственный потребитель `useTelegram` — виджет `TelegramDebugWidget`, который нигде не рендерится. В CSS для переменных `--tg-theme-*` заданы тёмные фолбэки.
+- **Язык один — русский** (`locales = ['ru']`).
+- **Кнопка настроек** в главном меню ничего не делает (`TODO`).
+- **Вехи `slowdown` и `all`** только фиксируются в состоянии — механики слоудауна нет.
+- **`public/` пуста**: статических файлов нет, иконка — `app/favicon.ico`.
+- **Метаданные страницы дефолтные**: `title: 'Create Next App'`, в `app/layout.tsx` указан `lang="en"`.
+- **Автотестов нет** (подробнее в разделе «Тесты»).
+- **Telegram-мок не активируется**: он включается только при `NEXT_PUBLIC_ENABLE_MOCK=true` и внутри неподключённого `TelegramProvider`.
 
 ---
 
-## 🚀 Как запустить
+## Установка
 
-### Что нужно заранее
+Требования:
 
-- **Node.js** ≥ 20.9.0
-- **pnpm** ≥ 8.x
-- **Git**
+- **Node.js ≥ 20.9** — минимальная версия для Next.js 16 (по документации в `node_modules/next/dist/docs`).
+- **pnpm ≥ 9** — `pnpm-lock.yaml` имеет `lockfileVersion: '9.0'`.
 
-### Установка
+Проверено на Node.js 24.14.1 и pnpm 11.6.0.
 
 ```bash
-# Клонируем репозиторий
 git clone https://github.com/octomine/circles-game-tma.git
 cd circles-game-tma
-
-# Ставим зависимости
 pnpm install
-
-# На Windows — одобряем build-скрипты
-pnpm approve-builds
-# В меню выбираем: @parcel/watcher и @swc/core
 ```
 
-### Разработка
+> Шаг `pnpm approve-builds` для нативных зависимостей (`@parcel/watcher`, `@swc/core`) — **[не проверено]**.
+
+---
+
+## Быстрый старт
 
 ```bash
 pnpm dev
 ```
 
-Откроется на `http://localhost:3000`. Приложение запустится с Telegram-моком, так что можно спокойно кодить без реального Telegram.
+Приложение поднимется на `http://localhost:3000` (порт по умолчанию Next.js; фактический запуск в этом окружении **[не проверено]**).
 
-> 💡 **Совет:** чтобы открыть игру с телефона в локальной сети, добавь флаг `-H 0.0.0.0` в скрипт `dev` в `package.json` и заходи по IP компьютера (`http://192.168.x.x:3000`).
+Чтобы открыть игру с телефона по локальной сети, недостаточно запустить dev-сервер с `-H 0.0.0.0`: запросы с чужого origin отклоняются, пока IP не добавлен в `allowedDevOrigins` в `next.config.ts`. Сейчас там указан один адрес — `192.168.3.14`.
 
-### Проверки перед коммитом
+Production-сборка:
 
 ```bash
-pnpm type-check    # Проверка типов
-pnpm lint          # Линтер
-pnpm lint --fix    # Автофикс
-pnpm build         # Production-сборка
+pnpm build
 ```
 
-> 💡 **Совет:** при `git commit` автоматически запустится `lint-staged`, а при `git push` — полная проверка типов и сборка. Если что-то сломано — пуш не пройдёт.
+Сборка идёт в статический экспорт: результат — папка `out/`, которую можно раздавать любым статическим сервером. **Сборка в этом окружении [не проверено]** (в репозитории есть `out/` от предыдущей сборки).
+
+Скрипт `pnpm start` (`next start`) предназначен для сборки с Node-сервером и для режима `output: 'export'` не используется — **[не проверено]**.
+
+Переменные окружения: в коде используется только `NEXT_PUBLIC_ENABLE_MOCK` (см. «Известные ограничения»). Файла `.env.example` в репозитории нет.
 
 ---
 
-## 🎮 Как играть
-
-1. **Старт** — нажмите «Играть 🎮» в главном меню
-2. **Цель** — кликайте по кругам **целевого цвета** (он показан в центре HUD)
-3. **Очки** — +10 за каждое правильное попадание
-4. **Жизни** — 3 ❤️, теряются при клике по неправильному цвету
-5. **Смена цвета** — каждые 10 секунд целевой цвет меняется (круговой прогресс-бар показывает оставшееся время)
-6. **Круги** — плавно появляются и исчезают (синусоидальная анимация), каждый со своим размером и временем жизни
-7. **Промах** — игра замирает на 0.3 секунды, появляется эффект разбитого сердца 💔
-8. **Game Over** — когда жизни закончатся, после freeze-эффекта увидите финальный счёт и рекорд
-
----
-
-## 🌍 Как добавить новый язык
-
-Проект использует `next-intl` с неймспейсами:
-
-- `common` — общие тексты (кнопки, лоадер)
-- `menu` — главное меню
-- `game` — игровые тексты (HUD, game over)
-
-**Чтобы добавить язык:**
-
-1. Создайте папку `src/shared/i18n/locales/{code}/`
-2. Скопируйте JSON-файлы из `ru/`
-3. Переведите значения
-4. Добавьте код языка в `src/shared/i18n/config.ts`:
-
-```typescript
-export const locales = ['ru', 'en', 'lv'] as const;
-```
-
----
-
-## 📱 Telegram-интеграция
-
-### Создаём бота
-
-1. Откройте [@BotFather](https://t.me/BotFather) в Telegram
-2. Отправьте `/newbot` и следуйте инструкциям
-3. Сохраните полученный токен
-
-### Привязываем Web App
-
-1. В @BotFather: `/mybots` → выберите своего бота
-2. **Bot Settings** → **Menu Button** → **Configure Menu Button**
-3. Введите URL: `https://your-app.vercel.app`
-4. Введите название кнопки: `Играть 🎮`
-
----
-
-## 🔄 CI/CD
-
-### GitHub Actions
-
-При каждом push в `main` или `dev` автоматически:
-
-- ✅ Устанавливаются зависимости (`pnpm install`)
-- ✅ Проверяются типы (`pnpm type-check`)
-- ✅ Прогоняется линтер (`pnpm lint`)
-- ✅ Собирается production-версия (`pnpm build`)
-
-### Git Hooks (Husky)
-
-- **pre-commit** — `lint-staged` прогоняет ESLint + Prettier по изменённым файлам
-- **pre-push** — полная проверка типов и сборка
-
-### Vercel
-
-- Автоматический деплой при push в GitHub
-- Preview deployments для каждого PR
-- HTTPS из коробки
-- Edge Network для быстрой загрузки по всему миру
-- Встроенные Vercel Analytics и Speed Insights
-
----
-
-## 🎨 Кастомизация
+## Конфигурация
 
 ### Игровые параметры
 
-Всё настраивается в `src/entities/game-session/config/constants.ts`. Все временные интервалы — в **миллисекундах**:
+Всё в [`src/entities/game-session/config/constants.ts`](src/entities/game-session/config/constants.ts), интервалы — в миллисекундах:
 
-```typescript
+```ts
 export const GAME_CONFIG = {
   // Цвета игры
   COLORS: ['#FF5733', '#33FF57', '#3357FF', '#F333FF', '#FFF333'],
-  TARGET_COLOR_SPAWN_CHANCE: 0.3, // Шанс спавна нужного цвета (30%)
-  MIN_CIRCLES_FOR_GUARANTEE: 5, // Мин. кругов для гарантии нужного цвета
+  TARGET_COLOR_SPAWN_CHANCE: 0.3,
+  MIN_CIRCLES_FOR_GUARANTEE: 5,
 
   // Жизни и время
   DEFAULT_LIVES: 3,
-  TIME_TO_CHANGE_COLOR_MS: 10000, // 10 секунд
+  MAX_LIVES: 5, // потолок для бонуса extraLife с вехи комбо
+  TIME_TO_CHANGE_COLOR_MS: 10000,
 
   // Круги
   CIRCLE_RADIUS: 100,
-  CIRCLE_RADIUS_VARIANCE: 0.5, // ±50% от базового размера
-  CIRCLE_LIFETIME_MS: 5000, // 5 секунд
-  CIRCLE_LIFETIME_VARIANCE: 0.5, // ±50% от базового времени жизни
-  SPAWN_INTERVAL_MS: 1000,
+  CIRCLE_RADIUS_VARIANCE: 0.5,
+  CIRCLE_LIFETIME_MS: 5000,
+  CIRCLE_LIFETIME_VARIANCE: 0.5,
+  SPAWN_INTERVAL_MS: 500,
   MAX_CIRCLES_ON_SCREEN: 20,
 
   // Частицы
@@ -296,42 +145,133 @@ export const GAME_CONFIG = {
   MAX_PARTICLES: 50,
 
   // Эффект потери жизни
-  LOSE_LIFE_FREEZE_MS: 750, // Длительность freeze-кадра
-  LOSE_LIFE_HEART_MAX_SIZE: 500, // Макс. размер разбитого сердца
-  LOSE_LIFE_HEART_DURATION_MS: 1000, // Длительность эффекта сердца
+  LOSE_LIFE_FREEZE_MS: 750,
+  LOSE_LIFE_HEART_MAX_SIZE: 500,
+  LOSE_LIFE_HEART_DURATION_MS: 1000,
 } as const;
 ```
 
-### Темы Telegram
+### Параметры комбо
 
-Цвета автоматически подхватываются из CSS-переменных Telegram:
+В [`src/entities/game-session/config/comboConfig.ts`](src/entities/game-session/config/comboConfig.ts):
 
-```css
---tg-theme-bg-color
---tg-theme-text-color
---tg-theme-hint-color
---tg-theme-button-color
---tg-theme-button-text-color
---tg-theme-secondary-bg-color
+```ts
+export const COMBO_CONFIG = {
+  MIN_DIFF: 20, // мс: минимальное ускорение для роста комбо
+  MAX_INTERVAL: 2000, // мс: интервал больше — полный сброс
+  MIN_CLICK_INTERVAL: 80, // мс: анти-спам
+  POINTS_BASE: 10, // базовые очки за попадание
+  MULTIPLIERS: [
+    { minCombo: 7, mult: 4 },
+    { minCombo: 5, mult: 3 },
+    { minCombo: 3, mult: 2 },
+    { minCombo: 1, mult: 1 },
+  ],
+  MILESTONES: { 3: 'extraLife', 5: 'shield', 7: 'slowdown', 10: 'all' },
+} as const;
 ```
 
----
+### GamePush
 
-## 🗺️ Что планируется
+`projectId` и `publicToken` захардкожены в [`src/shared/gamepush/GamePushProvider.tsx`](src/shared/gamepush/GamePushProvider.tsx) (`PROJECT_ID = 31261`). SDK грузится с зеркал CDN; если токен не заполнен, SDK не загружается вообще, и приложение работает на локальном рекорде.
 
-- 📱 Силовое поле с акселерометром для частиц (только мобильная версия)
-- 🎁 Бонусы и штрафы (новые типы игровых объектов)
-- 📊 Детальная статистика игр (аналитика через Telemetr.io / Vercel)
-- ☁️ Telegram Cloud Storage для синхронизации рекордов между устройствами
-- 🏆 Глобальный лидерборд
-- 🔊 Звуковые эффекты
+- `score` — числовое поле игрока в панели GamePush: используется и для рекорда, и для лидерборда. Запись — `player.set(...)` + `player.sync({ storage: 'cloud' })`, только если новый результат больше сохранённого.
+- `fallback_bestScore` — ключ `localStorage`, куда пишется рекорд, когда облако недоступно (см. [`src/entities/player-score/model/constants.ts`](src/entities/player-score/model/constants.ts)).
 
----
+### Тема и переводы
 
-## 📄 Лицензия
-
-MIT
+- Цвета интерфейса — в [`src/app/styles/globals.css`](src/app/styles/globals.css) через `@theme` Tailwind v4 (`tailwind.config` не нужен). Переменные `--tg-theme-*` объявлены там же тёмными фолбэками; рантайм-подстановка значений из Telegram не подключена.
+- Тексты — [`src/shared/i18n/locales/ru/`](src/shared/i18n/locales/ru): `common.json`, `menu.json`, `game.json`, `leaderboard.json`. Неймспейсы подключаются вручную в [`src/shared/i18n/request.ts`](src/shared/i18n/request.ts), список языков — в [`src/shared/i18n/config.ts`](src/shared/i18n/config.ts).
 
 ---
 
-**Сделано с ❤️ для Telegram Mini Apps** 🚀
+## Тесты
+
+Автотестов и тест-раннера в проекте нет: конфигов vitest/jest/playwright нет, тестовых файлов вне `node_modules` тоже нет. Вместо тестов используются статические проверки и хуки:
+
+```bash
+pnpm type-check    # tsc --noEmit
+pnpm lint          # eslint
+pnpm format:check  # prettier --check
+pnpm build         # production-сборка
+```
+
+Что проверено в этом окружении:
+
+- `pnpm type-check` — **ошибок нет** (запускалось как `tsc --noEmit`; штатный скрипт в режиме read-only не смог перезаписать `tsconfig.tsbuildinfo`).
+- `pnpm lint` — **0 ошибок, 1 warning**: неиспользуемый параметр `_e` в `src/widgets/game-canvas/ui/GameCanvasWidget.tsx`.
+- `pnpm build` — **[не проверено]**.
+
+Автоматизация:
+
+- **pre-commit** (`.husky/pre-commit`) — `pnpm exec lint-staged`: `eslint --fix` и `prettier --write` по изменённым файлам.
+- **pre-push** (`.husky/pre-push`) — `pnpm type-check`, затем `pnpm build`.
+- **CI** (`.github/workflows/ci.yml`) — на push в `main` и на pull request в `main`: `pnpm install` → `pnpm type-check` → `pnpm lint` → `pnpm build`.
+
+---
+
+## Структура проекта
+
+Код организован по Feature-Sliced Design: `app/` — точки входа Next.js, `src/` — слои по ответственности.
+
+```
+circles-game-tma/
+├── app/                                       # точки входа Next.js
+│   ├── layout.tsx                             # html/body, шрифт Nunito, провайдеры
+│   ├── providers.tsx                          # AppProviders: GamePush + Intl + Navigation
+│   ├── page.tsx                               # рендерит GameRouterView
+│   └── favicon.ico
+└── src/
+    ├── app/                                   # инфраструктура приложения
+    │   ├── providers/                         # IntlProvider, TelegramProvider*
+    │   ├── styles/globals.css                 # тема Tailwind v4, фолбэки --tg-theme-*
+    │   └── types/telegram.d.ts
+    ├── pages/                                 # композиция экранов
+    │   ├── game/ui/GameView.tsx
+    │   └── game-router/ui/GameRouterView.tsx  # переключение экранов и Motion-переходы
+    ├── widgets/
+    │   ├── main-menu/                         # главное меню
+    │   ├── game-canvas/                       # PixiJS-поле
+    │   │   ├── lib/                           # GameObject, Circle, Particle, CrackedHeart
+    │   │   ├── hooks/useGameEngine.ts         # игровой цикл, спавн, freeze, пауза
+    │   │   └── ui/GameCanvasWidget.tsx
+    │   ├── game-hud/                          # ScoreDisplay, LivesDisplay,
+    │   │                                      # TargetColorIndicator, ShieldIndicator
+    │   ├── game-over/                         # экран результатов
+    │   ├── leaderboard-screen/                # экран лидерборда
+    │   └── telegram-debug/                    # debug-виджет (нигде не рендерится)
+    ├── features/
+    │   ├── leaderboard/                       # useFetchLeaderboard, usePlayerRating, mappers
+    │   └── save-score/                        # useSaveScore
+    ├── entities/
+    │   ├── game-session/                      # Zustand-стор
+    │   │   ├── model/                         # gameSessionStore.ts, defaults.ts
+    │   │   ├── config/                        # constants.ts, comboConfig.ts
+    │   │   ├── types/                         # gameSessionStore.types.ts
+    │   │   └── ui/ComboHistogram/             # гистограмма интервалов комбо
+    │   └── player-score/                      # рекорд: облако GamePush + fallback
+    └── shared/
+        ├── gamepush/                          # загрузка SDK и обёртка над gp
+        ├── i18n/                              # config.ts, request.ts, locales/ru/
+        ├── lib/                               # cn.ts, number.ts, telegram/, telegram-mock.ts
+        ├── navigation/                        # экраны в React-состоянии
+        └── ui/                                # Button, Card, Text, Title, Animated*
+```
+
+\* `TelegramProvider` экспортируется, но в дерево провайдеров не включён — см. «Известные ограничения».
+
+### Архитектура игровых объектов
+
+Все игровые объекты наследуются от абстрактного `GameObject` (`extends PIXI.Graphics`) и инкапсулируют свой жизненный цикл `spawn → update → reset`:
+
+- `Circle` — кликабельный круг: рисует себя, считает возраст, анимирует масштаб и меняет pivot в середине жизни;
+- `Particle` — визуальный эффект попадания;
+- `CrackedHeart` — эффект потери жизни.
+
+Пулы объектов создаются один раз при инициализации канваса, в игровом цикле новые объекты не создаются. Во время freeze обновляются только частицы и сердце — это ветвление реализовано в `useGameEngine` вручную; объявленный в `GameObject` флаг `ignoresFreeze` движок не читает.
+
+---
+
+## Лицензия
+
+MIT — см. [LICENSE](LICENSE).

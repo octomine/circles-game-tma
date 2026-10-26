@@ -3,7 +3,7 @@
 import { useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
 
-import { useGameSessionStore } from '@/entities/game-session';
+import { GAME_CONFIG, useGameSessionStore } from '@/entities/game-session';
 import { cn } from '@/shared';
 
 export function LivesDisplay() {
@@ -24,8 +24,9 @@ export function LivesDisplay() {
     return;
   }, [lives, prevLives]);
 
-  // Максимальное количество жизней (из конфига)
-  const maxLives = 3;
+  // Максимальное количество жизней: бонус extraLife с вехи комбо может
+  // поднять жизни выше стартовых, поэтому берём конфиг, а не хардкод.
+  const maxLives = GAME_CONFIG.MAX_LIVES;
 
   return (
     <div

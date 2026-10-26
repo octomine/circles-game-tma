@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import * as PIXI from 'pixi.js';
 
-import { GAME_CONFIG, useGameSessionStore } from '@/entities/game-session';
+import { GAME_CONFIG, useGameSessionStore, type GameStatus } from '@/entities/game-session';
 
 import { Circle, CrackedHeart, Particle } from '../lib';
 
@@ -10,8 +10,10 @@ import type { UseGameEngineProps } from './types';
 export function useGameEngine({ appRef, isAppReady }: UseGameEngineProps) {
   // Селекторы стора
   const status = useGameSessionStore((state) => state.status);
-  const addScore = useGameSessionStore((state) => state.addScore);
-  const loseLife = useGameSessionStore((state) => state.loseLife);
+  const processCorrectClick = useGameSessionStore((state) => state.processCorrectClick);
+  const processWrongClick = useGameSessionStore((state) => state.processWrongClick);
+  const pauseGame = useGameSessionStore((state) => state.pauseGame);
+  const resumeGame = useGameSessionStore((state) => state.resumeGame);
   const tickTime = useGameSessionStore((state) => state.tickTime);
   const changeTargetColor = useGameSessionStore((state) => state.changeTargetColor);
 
@@ -19,7 +21,13 @@ export function useGameEngine({ appRef, isAppReady }: UseGameEngineProps) {
   const circlesRef = useRef<Circle[]>([]);
   const particlesRef = useRef<Particle[]>([]);
   const crackedHeartsRef = useRef<CrackedHeart[]>([]);
-  const lastSpawnTimeRef = useRef(0);
+  // Время последнего спавна в единицах ИГРОВОГО времени, а не Date.now():
+  // отрицательный старт нужен, чтобы первый круг появился сразу, без ожидания
+  // полного интервала (gameTime начинается с нуля).
+  const lastSpawnTimeRef = useRef(-GAME_CONFIG.SPAWN_INTERVAL_MS);
+
+  // Предыдущий статус: отличает старт игры от возврата из паузы
+  const prevStatusRef = useRef<GameStatus | null>(null);
 
   // Состояние заморозки
   const isFreezingRef = useRef(false);
@@ -126,13 +134,13 @@ export function useGameEngine({ appRef, isAppReady }: UseGameEngineProps) {
       const currentTargetColor = useGameSessionStore.getState().targetColor;
 
       if (circle.color === currentTargetColor) {
-        // Попадание
-        addScore(10);
+        // Попадание: стор сам решает, как изменится комбо, счёт и бонусы
+        processCorrectClick();
         spawnParticles(circle.x, circle.y, circle.color);
         circle.reset();
       } else {
-        // Промах с эффектом
-        loseLife();
+        // Промах: щит в сторе может погасить его без потери жизни
+        processWrongClick();
 
         // Спавним эффект разбитого сердца
         spawnCrackedHeart(circle.x, circle.y);
@@ -144,8 +152,35 @@ export function useGameEngine({ appRef, isAppReady }: UseGameEngineProps) {
         circle.reset();
       }
     },
-    [addScore, loseLife]
+    [processCorrectClick, processWrongClick, spawnParticles, spawnCrackedHeart]
   );
+
+  // --- Авто-пауза при скрытии вкладки ---
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      const currentStatus = useGameSessionStore.getState().status;
+
+      // Вкладка скрыта (свернули Telegram, переключили чат) — ставим игру на паузу:
+      // gameTime замирает, и оставленные без присмотра круги не сгорают за спиной.
+      if (document.hidden) {
+        if (currentStatus === 'playing') {
+          pauseGame();
+        }
+        return;
+      }
+
+      // Вернулись — продолжаем с того же места.
+      if (currentStatus === 'paused') {
+        resumeGame();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [pauseGame, resumeGame]);
 
   // --- Инициализация пулов ---
   useEffect(() => {
@@ -199,6 +234,7 @@ export function useGameEngine({ appRef, isAppReady }: UseGameEngineProps) {
 
     const ticker = (ticker: PIXI.Ticker) => {
       const currentStatus = useGameSessionStore.getState().status;
+      // На паузе цикл стоит целиком: игровое время не копится, круги не стареют.
       if (currentStatus !== 'playing') return;
 
       const dt = ticker.deltaMS;
@@ -228,6 +264,8 @@ export function useGameEngine({ appRef, isAppReady }: UseGameEngineProps) {
           heart.update(dt);
         }
 
+        // tickTime здесь НЕ зовётся: gameTime замирает, поэтому заморозка
+        // не растягивает интервал и не сбрасывает комбо.
         return; // ← Выходим, не обновляем интерактивные объекты
       }
 
@@ -241,11 +279,12 @@ export function useGameEngine({ appRef, isAppReady }: UseGameEngineProps) {
         changeTargetColor();
       }
 
-      // Спавн новых кругов
-      const now = Date.now();
-      if (now - lastSpawnTimeRef.current > GAME_CONFIG.SPAWN_INTERVAL_MS) {
+      // Спавн новых кругов: сравниваем накопленное игровое время с моментом
+      // последнего спавна — свёрнутая вкладка и пауза не ускоряют поток кругов.
+      const gameTime = useGameSessionStore.getState().gameTime;
+      if (gameTime - lastSpawnTimeRef.current >= GAME_CONFIG.SPAWN_INTERVAL_MS) {
         spawnCircle();
-        lastSpawnTimeRef.current = now;
+        lastSpawnTimeRef.current = gameTime;
       }
 
       // Обновление кругов (интерактивные)
@@ -270,7 +309,12 @@ export function useGameEngine({ appRef, isAppReady }: UseGameEngineProps) {
 
   // --- Очистка всех объектов при старте игры ---
   useEffect(() => {
-    if (status !== 'playing') return;
+    const prevStatus = prevStatusRef.current;
+    prevStatusRef.current = status;
+
+    // Только вход в игру. Возврат из паузы ('paused' → 'playing') доску не трогает:
+    // иначе каждое переключение вкладки стирало бы все круги с экрана.
+    if (status !== 'playing' || prevStatus === 'paused') return;
 
     // Сбрасываем все активные круги
     circlesRef.current.forEach((circle) => {
@@ -298,6 +342,6 @@ export function useGameEngine({ appRef, isAppReady }: UseGameEngineProps) {
     freezeTimeLeftRef.current = 0;
 
     // Сбрасываем таймер спавна, чтобы первый круг появился сразу
-    lastSpawnTimeRef.current = 0;
+    lastSpawnTimeRef.current = -GAME_CONFIG.SPAWN_INTERVAL_MS;
   }, [status]);
 }

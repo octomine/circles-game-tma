@@ -1,13 +1,14 @@
 'use client';
 
 import { ArrowPathIcon } from '@heroicons/react/24/outline';
+import * as motion from 'motion/react-client';
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 
 import { LeaderboardList, useFetchLeaderboard, usePlayerRating } from '@/features/leaderboard';
 import { useGamePush } from '@/shared/gamepush';
 import { useGameNavigation } from '@/shared/navigation';
-import { AnimatedBackground, Button, Card, Text, Title } from '@/shared/ui';
+import { Button, Card, Text, Title } from '@/shared/ui';
 
 export const LeaderboardWidget = () => {
   const t = useTranslations('leaderboard');
@@ -53,16 +54,28 @@ export const LeaderboardWidget = () => {
   // Пока SDK грузится, список ещё пуст: без этого на кадр мелькал бы экран «Пока никого нет».
   const isListLoading = loading || !isReady;
 
+  // Фон (AnimatedBackground) живёт в GameRouterView: сам экран прозрачный,
+  // иначе он перекрыл бы PixiJS-слой.
   return (
     <div className="relative flex min-h-screen flex-col p-6">
-      <AnimatedBackground />
-
       <div className="relative z-10 mx-auto flex w-full max-w-md flex-1 flex-col">
         <div className="mb-6 flex items-center justify-between">
           <Title as="h1">{t('title')}</Title>
 
           <Button variant="icon" aria-label={t('refresh')} onClick={handleRefresh}>
-            <ArrowPathIcon className="h-6 w-6" />
+            {/* Пока идёт загрузка (включая ожидание готовности SDK) вращение
+                бесконечно; когда данные пришли, motion доигрывает возврат
+                к rotate: 0 за 0.3s — иконка тормозит плавно, а не рывком. */}
+            <motion.div
+              animate={isListLoading ? { rotate: 360 } : { rotate: 0 }}
+              transition={
+                isListLoading
+                  ? { repeat: Infinity, duration: 1, ease: 'linear' }
+                  : { duration: 0.3 }
+              }
+            >
+              <ArrowPathIcon className="h-6 w-6" />
+            </motion.div>
           </Button>
         </div>
 

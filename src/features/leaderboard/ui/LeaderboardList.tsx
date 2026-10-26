@@ -2,10 +2,12 @@
 
 import { ExclamationTriangleIcon, UserGroupIcon } from '@heroicons/react/24/outline';
 import { TrophyIcon } from '@heroicons/react/24/solid';
+import { type Variants } from 'motion/react';
+import * as motion from 'motion/react-client';
 import { useTranslations } from 'next-intl';
 
 import { cn } from '@/shared';
-import { Button, Text } from '@/shared/ui';
+import { AnimatedStack, Button, Text } from '@/shared/ui';
 
 import type { LeaderboardPlayer } from '../model/types';
 
@@ -33,6 +35,18 @@ const TOP_POSITION_CLASSES: Record<number, string> = {
 };
 
 /**
+ * Варианты строки списка. Метки hidden/visible строка не задаёт сама: их
+ * рассылает AnimatedStack (initial="hidden" animate="visible") через
+ * MotionContext, а staggerChildren в его варианте visible запускает строки
+ * по очереди — по одному сдвигу на строку. Строке достаточно объявить те же
+ * метки в variants, чтобы попасть в каскад.
+ */
+const rowVariants: Variants = {
+  hidden: { opacity: 0, x: -10 },
+  visible: { opacity: 1, x: 0 },
+};
+
+/**
  * Строка списка. Вынесена отдельно, чтобы тяжёлый рендер списка не разрастался
  * в один компонент и подсветку места не приходилось считать в общем теле.
  */
@@ -45,7 +59,8 @@ const LeaderboardRow = ({ player, isMe }: LeaderboardRowProps) => {
   const initial = player.name.charAt(0).toUpperCase();
 
   return (
-    <div
+    <motion.div
+      variants={rowVariants}
       className={cn(
         'flex items-center gap-3 rounded-xl border border-transparent p-3 transition-colors',
         // Свою строку выделяем неоновой обводкой: так своё место видно прямо в списке.
@@ -78,7 +93,7 @@ const LeaderboardRow = ({ player, isMe }: LeaderboardRowProps) => {
 
       <div className="flex-1 truncate font-bold">{player.name}</div>
       <div className="text-primary font-black tabular-nums">{player.score}</div>
-    </div>
+    </motion.div>
   );
 };
 
@@ -120,7 +135,9 @@ export const LeaderboardList = ({ players, me, loading, error, onRetry }: Leader
   }
 
   return (
-    <div className="flex flex-col gap-2">
+    // AnimatedStack задаёт только motion-обёртку с метками hidden/visible:
+    // раскладка (flex, gap) приходит сюда классом и не меняется.
+    <AnimatedStack className="flex flex-col gap-2">
       {players.map((player) => (
         <LeaderboardRow
           key={player.id}
@@ -129,6 +146,6 @@ export const LeaderboardList = ({ players, me, loading, error, onRetry }: Leader
           isMe={me !== null && player.id === me.id}
         />
       ))}
-    </div>
+    </AnimatedStack>
   );
 };
