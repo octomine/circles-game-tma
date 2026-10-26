@@ -49,24 +49,42 @@ export const useGameSessionStore = create<GameSessionState>((set, get) => ({
       // во время заморозки за промах и на паузе, поэтому там gameTime замирает —
       // именно из-за этого интервалы комбо считаются по нему, а не по Date.now().
       const gameTime = state.gameTime + dt;
-
-      // Серия живёт ровно столько, сколько длился предыдущий интервал: как только
-      // с последнего попадания прошло больше, следующий клик уже не может быть
-      // ускорением (interval > lastInterval > lastInterval - MIN_DIFF), то есть
-      // комбо обречено. Поэтому сбрасываем его сразу по таймеру, не дожидаясь
-      // клика: иначе множитель висел бы до следующего тапа, хотя гистограмма
-      // уже красная. lastInterval === 0 бывает только после первого клика —
-      // предыдущего интервала ещё нет, и превышать нечего.
-      const isComboExpired =
-        state.combo > 0 &&
-        state.lastClickGameTime !== null &&
-        state.lastInterval !== null &&
-        state.lastInterval > 0 &&
-        gameTime - state.lastClickGameTime > state.lastInterval;
-
-      const comboPatch: { combo?: number } = isComboExpired ? { combo: 0 } : {};
-
       const newTime = state.timeToNextColor - dt;
+
+      // --- Таймаут комбо ---
+      //
+      // Сброс живёт здесь, а не в processCorrectClick, потому что окно комбо —
+      // величина ВРЕМЕННАЯ, а время прибывает только в tickTime. Если игрок
+      // перестал кликать, processCorrectClick больше не вызовется вообще, и серия
+      // осталась бы «живой» (с множителем) до следующего тапа, хотя окно уже
+      // закрыто. Тикер же зовётся каждый кадр, поэтому он единственное место,
+      // где сброс происходит в реальном времени.
+      let combo = state.combo;
+      let lastInterval = state.lastInterval;
+      let lastClickGameTime = state.lastClickGameTime;
+      let intervalHistory = state.intervalHistory;
+
+      if (lastClickGameTime !== null) {
+        const elapsed = gameTime - lastClickGameTime;
+
+        // lastInterval === 0 означает «эталона ещё нет» — так его ставит первый
+        // клик (см. processCorrectClick). Поэтому 0 через || превращается в
+        // MAX_INTERVAL: та же формула, что и в ComboHistogram, иначе стор и порог
+        // покраснения активного столбца разошлись бы.
+        const limit = lastInterval || COMBO_CONFIG.MAX_INTERVAL;
+
+        if (elapsed >= limit) {
+          // Окно закрылось: следующий клик уже не может быть ускорением
+          // (interval > limit >= limit - MIN_DIFF), значит множитель держать
+          // не за что. Чистим и опорную точку, и историю: для гистограммы
+          // lastClickGameTime === null — сигнал скрыть активный столбец и
+          // остановить rAF, а пустая история убирает завершённые столбцы.
+          combo = 0;
+          lastInterval = null;
+          lastClickGameTime = null;
+          intervalHistory = [];
+        }
+      }
 
       if (newTime <= 0) {
         const available = GAME_CONFIG.COLORS.filter((c) => c !== state.targetColor);
@@ -74,13 +92,23 @@ export const useGameSessionStore = create<GameSessionState>((set, get) => ({
 
         return {
           gameTime,
-          ...comboPatch,
+          combo,
+          lastInterval,
+          lastClickGameTime,
+          intervalHistory,
           timeToNextColor: GAME_CONFIG.TIME_TO_CHANGE_COLOR_MS,
           targetColor: newColor,
         };
       }
 
-      return { gameTime, ...comboPatch, timeToNextColor: newTime };
+      return {
+        gameTime,
+        combo,
+        lastInterval,
+        lastClickGameTime,
+        intervalHistory,
+        timeToNextColor: newTime,
+      };
     }),
 
   processCorrectClick: () =>
