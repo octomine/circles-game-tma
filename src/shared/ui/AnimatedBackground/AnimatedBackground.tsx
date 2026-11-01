@@ -71,8 +71,12 @@ export const AnimatedBackground = () => {
       });
 
       // Размонтировали, пока грузился модуль: приложение нужно погасить здесь же.
+      // { removeView: true }, а не `true`: `true` дополнительно освобождает ГЛОБАЛЬНЫЕ
+      // пулы Pixi (TexturePool, CanvasPool, BigPool) — они общие для всех приложений на
+      // странице, и рядом живёт игровой канвас. Его ресурсы уничтожались под ним, отсюда
+      // падения «reading 'push'» (TexturePool.returnTexture) и «reading 'geometry'».
       if (isCancelled) {
-        instance.destroy(true, { children: true, texture: true });
+        instance.destroy({ removeView: true }, { children: true, texture: true });
         return;
       }
 
@@ -217,7 +221,9 @@ export const AnimatedBackground = () => {
       blobTexture?.destroy(true);
       blobTexture = null;
 
-      app?.destroy(true, { children: true, texture: true });
+      // { removeView: true }, а не `true`: см. комментарий про глобальные пулы выше —
+      // их освобождение сносит ресурсы второго, живого Pixi-приложения.
+      app?.destroy({ removeView: true }, { children: true, texture: true });
       app = null;
     };
   }, []);

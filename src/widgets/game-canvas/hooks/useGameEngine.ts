@@ -3,7 +3,7 @@ import * as PIXI from 'pixi.js';
 
 import { GAME_CONFIG, useGameSessionStore, type GameStatus } from '@/entities/game-session';
 
-import { Circle, CrackedHeart, Particle } from '../lib';
+import { Circle, CrackedHeart, EffectsLayer, Particle } from '../lib';
 
 import type { UseGameEngineProps } from './types';
 
@@ -21,6 +21,8 @@ export function useGameEngine({ appRef, isAppReady }: UseGameEngineProps) {
   const circlesRef = useRef<Circle[]>([]);
   const particlesRef = useRef<Particle[]>([]);
   const crackedHeartsRef = useRef<CrackedHeart[]>([]);
+  // Слой фоновых эффектов: тонировка, свечение по краям и щит
+  const effectsLayerRef = useRef<EffectsLayer | null>(null);
   // Время последнего спавна в единицах ИГРОВОГО времени, а не Date.now():
   // отрицательный старт нужен, чтобы первый круг появился сразу, без ожидания
   // полного интервала (gameTime начинается с нуля).
@@ -195,6 +197,30 @@ export function useGameEngine({ appRef, isAppReady }: UseGameEngineProps) {
     particlesRef.current = [];
     crackedHeartsRef.current = [];
 
+    // Эффекты создаём ПЕРВЫМИ: порядок addChild задаёт порядок отрисовки, и слой
+    // обязан оказаться под кругами, частицами и сердцами.
+    const effectsLayer = new EffectsLayer(app);
+    effectsLayerRef.current = effectsLayer;
+    app.stage.addChild(effectsLayer);
+
+    // Начальное состояние применяем сразу, а не ждём первого изменения: игрок мог
+    // получить щит или пережить смену цвета до того, как канвас доинициализировался.
+    const initialState = useGameSessionStore.getState();
+    effectsLayer.setTargetColor(initialState.targetColor);
+    effectsLayer.setShieldVisible(initialState.hasShield);
+
+    // Единственная подписка на два поля: эффекты меняются только по событию,
+    // поэтому опрос в тикере не нужен.
+    const unsubscribeEffects = useGameSessionStore.subscribe((state, prevState) => {
+      if (state.targetColor !== prevState.targetColor) {
+        effectsLayer.setTargetColor(state.targetColor);
+      }
+
+      if (state.hasShield !== prevState.hasShield) {
+        effectsLayer.setShieldVisible(state.hasShield);
+      }
+    });
+
     // Создаём пул кругов
     for (let i = 0; i < GAME_CONFIG.MAX_CIRCLES_ON_SCREEN; i++) {
       const circle = new Circle();
@@ -218,6 +244,12 @@ export function useGameEngine({ appRef, isAppReady }: UseGameEngineProps) {
     }
 
     return () => {
+      unsubscribeEffects();
+
+      effectsLayerRef.current = null;
+      // Слой уничтожаем до пулов: он не делит с ними ни текстуры, ни контексты.
+      effectsLayer.destroy();
+
       circlesRef.current.forEach((c) => c.destroy());
       particlesRef.current.forEach((p) => p.destroy());
       crackedHeartsRef.current.forEach((h) => h.destroy());

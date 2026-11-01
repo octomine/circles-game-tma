@@ -1,67 +1,43 @@
 'use client';
 
+import { HeartIcon as HeartIconOutline } from '@heroicons/react/24/outline';
+import { HeartIcon, ShieldCheckIcon } from '@heroicons/react/24/solid';
 import { useTranslations } from 'next-intl';
-import { useEffect, useState } from 'react';
 
 import { GAME_CONFIG, useGameSessionStore } from '@/entities/game-session';
 import { cn } from '@/shared';
 
-export function LivesDisplay() {
+/** Размер сердечка: 6 (1.5rem) в системе Tailwind. */
+const HEART_SIZE = 'h-6 w-6';
+
+/**
+ * Жизни и щит.
+ *
+ * Потраченные жизни остаются на экране пустыми сердечками, а не исчезают:
+ * так игрок видит и остаток, и потолок бонуса extraLife с вехи комбо.
+ */
+export const LivesDisplay = () => {
   const t = useTranslations('game');
   const lives = useGameSessionStore((state) => state.lives);
-
-  const [isShaking, setIsShaking] = useState(false);
-  const [prevLives, setPrevLives] = useState(lives);
-
-  // Анимация тряски при потере жизни
-  useEffect(() => {
-    if (lives < prevLives) {
-      setIsShaking(true);
-      const timer = setTimeout(() => setIsShaking(false), 500);
-      return () => clearTimeout(timer);
-    }
-    setPrevLives(lives);
-    return;
-  }, [lives, prevLives]);
-
-  // Максимальное количество жизней: бонус extraLife с вехи комбо может
-  // поднять жизни выше стартовых, поэтому берём конфиг, а не хардкод.
-  const maxLives = GAME_CONFIG.MAX_LIVES;
+  const hasShield = useGameSessionStore((state) => state.hasShield);
 
   return (
-    <div
-      className={cn(
-        'flex flex-col items-center justify-center',
-        'rounded-2xl px-6 py-3',
-        'bg-[var(--tg-theme-secondary-bg-color)]/80',
-        'backdrop-blur-sm',
-        'shadow-lg',
-        'transition-all duration-300',
-        isShaking && 'animate-shake'
-      )}
-    >
-      <span
-        className={cn(
-          'text-xs font-medium tracking-wider uppercase',
-          'text-[var(--tg-theme-hint-color)]'
-        )}
-      >
-        {t('hud.lives', { count: lives })}
-      </span>
+    <div className="flex items-center gap-2" aria-label={t('hud.lives', { count: lives })}>
+      <div className="flex gap-1">
+        {Array.from({ length: GAME_CONFIG.MAX_LIVES }).map((_, index) => {
+          const isFilled = index < lives;
 
-      <div className="mt-1 flex gap-1">
-        {Array.from({ length: maxLives }).map((_, index) => (
-          <span
-            key={index}
-            className={cn(
-              'text-2xl transition-all duration-300',
-              index < lives ? 'scale-100 opacity-100' : 'scale-75 opacity-30 grayscale'
-            )}
-          >
-            ❤️
-          </span>
-        ))}
+          // Ключ по индексу: сердечки не переставляются, меняется только их вид.
+          return isFilled ? (
+            <HeartIcon key={index} className={cn(HEART_SIZE, 'text-danger')} />
+          ) : (
+            <HeartIconOutline key={index} className={cn(HEART_SIZE, 'text-text-muted')} />
+          );
+        })}
       </div>
+
+      {/* Щит — бонус, а не жизнь: показываем отдельной иконкой рядом. */}
+      {hasShield && <ShieldCheckIcon className={cn('h-5 w-5', 'text-primary')} />}
     </div>
   );
-}
+};
