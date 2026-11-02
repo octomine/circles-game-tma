@@ -18,13 +18,13 @@ export const COMBO_CONFIG = {
     { minCombo: 3, mult: 2 },
     { minCombo: 1, mult: 1 },
   ],
-  MILESTONES: { 3: 'extraLife', 5: 'shield', 7: 'slowdown', 10: 'all' },
+  MILESTONES: { 3: 'shield', 5: 'extraLife', 7: 'slowdown', 10: 'all' },
   // Башня комбо (ComboTower). Размеры в px, кроме HEIGHT_VH: высота задаётся в vh,
   // чтобы башня занимала половину экрана на любой высоте и не зависела от DPR.
   TOWER: {
-    HEIGHT_VH: 50, // Высота башни (половина экрана)
+    HEIGHT_VH: 75, // Высота башни (половина экрана)
     MAX_VISIBLE_BRICKS: 10, // Сколько кирпичиков видно, остальные уходят вниз
-    BRICK_HEIGHT: 8, // Высота кирпичика в px
+    BRICK_HEIGHT: 16, // Высота кирпичика в px
     GAP: 4, // Расстояние между столбиками
     WIDTH: 24, // Ширина столбика
   },

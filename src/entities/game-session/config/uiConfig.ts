@@ -6,7 +6,7 @@
  * чтобы силу эффекта можно было подкрутить, не трогая сцену.
  */
 export const UI_CONFIG = {
-  GLOW_THICKNESS: 40, // Толщина свечения по краям
+  GLOW_THICKNESS: 25, // Толщина свечения по краям
   GLOW_ALPHA: 0.4,
   TINT_ALPHA: 0.05, // Тонировка фона
   SHIELD_ALPHA: 0.15,

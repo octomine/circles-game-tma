@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { Nunito } from 'next/font/google';
+import localFont from 'next/font/local';
 import { getLocale, getMessages } from 'next-intl/server';
 import type { ReactNode } from 'react';
 
@@ -7,12 +7,26 @@ import '../src/app/styles/globals.css';
 
 import { AppProviders } from './providers';
 
-// Кириллицу подключаем явно: без неё русский текст падает на системный шрифт.
-// variable отдаёт CSS-переменную --font-nunito, из которой тема собирает --font-sans.
-const nunito = Nunito({
+const nunito = localFont({
+  src: [
+    {
+      path: './fonts/nunito-cyrillic-400-normal.woff2',
+      weight: '400',
+      style: 'normal',
+    },
+    {
+      path: './fonts/nunito-cyrillic-700-normal.woff2',
+      weight: '700',
+      style: 'normal',
+    },
+    {
+      path: './fonts/nunito-cyrillic-900-normal.woff2',
+      weight: '900',
+      style: 'normal',
+    },
+  ],
   variable: '--font-nunito',
-  subsets: ['cyrillic', 'latin'],
-  weight: ['400', '700', '900'],
+  display: 'swap',
 });
 
 export const metadata: Metadata = {
