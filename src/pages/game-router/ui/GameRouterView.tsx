@@ -68,7 +68,7 @@ export const GameRouterView = () => {
     // isolate обязателен: он делает корень stacking context, иначе фолбэк-фон
     // корня (bg-background) рисовался бы ПОВЕРХ AnimatedBackground, у которого
     // отрицательный z-index, и PixiJS-слой был бы не виден.
-    <div className="bg-background relative isolate h-screen w-full overflow-hidden">
+    <div className="bg-background relative isolate h-dvh w-full overflow-hidden">
       {/* Фон живёт на уровне роутера, а не внутри каждого экрана: Pixi-приложение
           инициализируется один раз и не пересоздаётся на каждом переходе, а
           экраны сменяются поверх него. bg-background — цвет на время, пока

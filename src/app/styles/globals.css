@@ -45,3 +45,17 @@ body {
   color: var(--color-text);
   font-family: var(--font-sans);
 }
+
+/* Мобильный вьюпорт: 100dvh — динамическая высота, которая пересчитывается при
+   появлении/скрытии адресной строки браузера (в отличие от 100vh), поэтому нижний
+   край экрана игры не уходит под «плавающие» элементы браузера. overflow:hidden
+   на корне — запрет скролла; overscroll-behavior:none убирает pull-to-refresh и
+   «резинку»; touch-action:manipulation отключает двойной тап для зума. */
+html,
+body {
+  height: 100dvh;
+  overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: manipulation;
+  margin: 0;
+}

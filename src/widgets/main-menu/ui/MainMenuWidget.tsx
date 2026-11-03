@@ -35,8 +35,8 @@ export const MainMenuWidget = () => {
   // Фон (AnimatedBackground) живёт в GameRouterView: сам экран прозрачный,
   // иначе он перекрыл бы PixiJS-слой.
   return (
-    <div className="relative min-h-screen w-full overflow-hidden">
-      <div className="relative z-10 flex min-h-screen flex-col items-center justify-center px-6">
+    <div className="relative min-h-dvh w-full overflow-hidden">
+      <div className="relative z-10 flex min-h-dvh flex-col items-center justify-center px-6">
         <Button
           variant="icon"
           aria-label={tMenu('settingsLabel')}
