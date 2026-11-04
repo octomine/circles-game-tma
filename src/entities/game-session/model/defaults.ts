@@ -17,4 +17,5 @@ export const getDefaultGameData = (): GameSessionData => ({
   hasShield: false,
   milestonesHit: [],
   intervalHistory: [],
+  pendingEvents: [],
 });

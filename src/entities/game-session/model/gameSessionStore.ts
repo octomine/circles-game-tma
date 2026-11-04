@@ -1,10 +1,45 @@
 import { create } from 'zustand';
 
-import type { GameSessionState } from '../types/gameSessionStore.types';
+import type { GameEvent, GameSessionState } from '../types/gameSessionStore.types';
 import { GAME_CONFIG } from '../config/constants';
-import { COMBO_CONFIG, getComboMilestone, getComboMultiplier } from '../config/comboConfig';
+import {
+  COMBO_CONFIG,
+  getComboMilestone,
+  getComboMultiplier,
+  type ComboMilestone,
+} from '../config/comboConfig';
+import { UI_CONFIG } from '../config/uiConfig';
 
 import { getDefaultGameData } from './defaults';
+
+// Тип объявлен в types (стор его импортирует, поэтому объявление здесь дало бы
+// цикл store ↔ types), а реэкспорт держит его доступным «из стора», как в ТЗ.
+export type { GameEvent } from '../types/gameSessionStore.types';
+
+/**
+ * Идентификатор события.
+ *
+ * Счётчик, а не `crypto.randomUUID()`: id нужен только для удаления из очереди,
+ * а UUID доступен лишь в secure context — при отладке по http на LAN-адресе
+ * игра должна работать так же.
+ */
+let lastEventId = 0;
+
+const nextEventId = (): string => {
+  lastEventId += 1;
+  return `event-${lastEventId}`;
+};
+
+/**
+ * Текст сообщения на веху комбо.
+ *
+ * Только бонусы, которые игрок видит в HUD: `slowdown` и `all` пока не
+ * реализованы, и сообщение о них было бы обещанием без механики.
+ */
+const MILESTONE_MESSAGE_TEXT: Partial<Record<ComboMilestone, string>> = {
+  shield: '🛡️',
+  extraLife: '❤️',
+};
 
 export const useGameSessionStore = create<GameSessionState>((set, get) => ({
   ...getDefaultGameData(),
@@ -111,7 +146,7 @@ export const useGameSessionStore = create<GameSessionState>((set, get) => ({
       };
     }),
 
-  processCorrectClick: () =>
+  processCorrectClick: (x, y) =>
     set((state) => {
       const { gameTime, combo, lastClickGameTime, lastInterval, intervalHistory } = state;
 
@@ -174,6 +209,30 @@ export const useGameSessionStore = create<GameSessionState>((set, get) => ({
         }
       }
 
+      // Сообщение о вехе уходит в очередь событий, а не рисуется прямо здесь:
+      // стор ничего не знает про PixiJS, а движок вычитывает очередь в тикере.
+      const milestoneText =
+        isNewMilestone && milestone !== null ? MILESTONE_MESSAGE_TEXT[milestone] : undefined;
+
+      // Задержка = позиция события в очереди * MESSAGE_DELAY_MS: пачка событий,
+      // рождённая одним апдейтом, проявится по очереди. Отдельного executeAt нет
+      // намеренно: очередь вычитывается в ближайшем кадре, поэтому момент «когда
+      // применить» уже задан кадровой границей, а разнос по времени — забота
+      // самого FloatingMessage. Один таймер в одном месте вместо двух.
+      const pendingEvents: GameEvent[] = milestoneText
+        ? [
+            ...state.pendingEvents,
+            {
+              id: nextEventId(),
+              type: 'SPAWN_MESSAGE',
+              x,
+              y,
+              text: milestoneText,
+              delay: state.pendingEvents.length * UI_CONFIG.MESSAGE_DELAY_MS,
+            },
+          ]
+        : state.pendingEvents;
+
       // Всё пишем одним обновлением: счёт, жизни и комбо должны меняться вместе,
       // иначе подписчики успели бы увидеть промежуточное состояние.
       return {
@@ -185,27 +244,48 @@ export const useGameSessionStore = create<GameSessionState>((set, get) => ({
         lives: nextLives,
         hasShield: nextHasShield,
         milestonesHit: isNewMilestone ? [...state.milestonesHit, nextCombo] : state.milestonesHit,
+        pendingEvents,
       };
     }),
 
-  processWrongClick: () => {
-    const { hasShield } = get();
+  processWrongClick: (x, y) => {
+    const { hasShield, lives, pendingEvents } = get();
 
-    // Щит гасит промах целиком: ни жизни, ни комбо не теряем.
+    // Щит гасит промах целиком: ни жизни, ни комбо не теряем, но сам щит
+    // сгорает. shielded: true говорит движку, что промах уже оплачен щитом —
+    // значит, ни разбитого сердца, ни заморозки быть не должно.
     if (hasShield) {
-      set({ hasShield: false });
+      set({
+        hasShield: false,
+        pendingEvents: [
+          ...pendingEvents,
+          { id: nextEventId(), type: 'WRONG_CLICK', x, y, shielded: true, delay: 0 },
+        ],
+      });
       return;
     }
 
+    // Промах без щита: комбо и опорные точки сбрасываются, жизнь снимается —
+    // всё одним обновлением, чтобы подписчики не увидели промежуточное состояние.
+    // Отдельный loseLife() убрал бы обновление стора на два, и часть UI успела
+    // бы отрисоваться с новыми жизнями, но со старым комбо.
     set({
       combo: 0,
       lastInterval: null,
       lastClickGameTime: null,
       intervalHistory: [],
+      lives: lives - 1,
+      pendingEvents: [
+        ...pendingEvents,
+        { id: nextEventId(), type: 'WRONG_CLICK', x, y, shielded: false, delay: 0 },
+      ],
     });
-
-    get().loseLife();
   },
+
+  consumeEvent: (id) =>
+    set((state) => ({
+      pendingEvents: state.pendingEvents.filter((event) => event.id !== id),
+    })),
 
   // Пауза не трогает комбо и таймеры: gameTime и так стоит (tickTime не зовётся),
   // а серия сохраняется — переключение вкладки в Telegram не должно её обнулять.

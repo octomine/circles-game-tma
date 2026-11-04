@@ -3,9 +3,15 @@ import * as PIXI from 'pixi.js';
 
 import { GAME_CONFIG, useGameSessionStore, type GameStatus } from '@/entities/game-session';
 
-import { Circle, CrackedHeart, EffectsLayer, Particle } from '../lib';
+import { Circle, CrackedHeart, EffectsLayer, FloatingMessage, Particle } from '../lib';
 
 import type { UseGameEngineProps } from './types';
+
+/**
+ * Размер пула всплывающих сообщений. События редкие (вехи комбо), поэтому 10
+ * объектов покрывают даже пачку, пришедшую одним апдейтом стора.
+ */
+const FLOATING_MESSAGE_POOL_SIZE = 10;
 
 export function useGameEngine({ appRef, isAppReady }: UseGameEngineProps) {
   // Селекторы стора
@@ -21,6 +27,9 @@ export function useGameEngine({ appRef, isAppReady }: UseGameEngineProps) {
   const circlesRef = useRef<Circle[]>([]);
   const particlesRef = useRef<Particle[]>([]);
   const crackedHeartsRef = useRef<CrackedHeart[]>([]);
+  // Пул всплывающих сообщений: тексты вех комбо. Создаётся один раз, дальше
+  // объекты только переиспользуются — тикер не создаёт объектов.
+  const floatingMessagesRef = useRef<FloatingMessage[]>([]);
   // Слой фоновых эффектов: тонировка, свечение по краям и щит
   const effectsLayerRef = useRef<EffectsLayer | null>(null);
   // Время последнего спавна в единицах ИГРОВОГО времени, а не Date.now():
@@ -128,33 +137,72 @@ export function useGameEngine({ appRef, isAppReady }: UseGameEngineProps) {
     });
   }, []);
 
+  // Спавн всплывающего сообщения
+  const spawnFloatingMessage = useCallback((x: number, y: number, text: string, delay: number) => {
+    const freeMessage = floatingMessagesRef.current.find((message) => !message.isActive);
+
+    // Пул исчерпан — событие пропускаем. Сообщения редкие, поэтому расширять пул
+    // ради этого случая не нужно: лучше потерять текст, чем кадр.
+    if (!freeMessage) {
+      console.warn('[useGameEngine] Пул всплывающих сообщений исчерпан');
+      return;
+    }
+
+    freeMessage.spawn({ x, y, text, delay });
+  }, []);
+
+  // --- Вычитка очереди событий стора ---
+  const processPendingEvents = useCallback(() => {
+    // Снимок очереди: consumeEvent создаёт новый массив, но ссылка, по которой
+    // идёт цикл, остаётся прежней — итерировать «живой» стор не нужно.
+    const { pendingEvents, consumeEvent } = useGameSessionStore.getState();
+
+    for (const event of pendingEvents) {
+      if (event.type === 'SPAWN_MESSAGE') {
+        // delay приходит из стора: он же разносит пачку сообщений по времени.
+        spawnFloatingMessage(event.x, event.y, event.text, event.delay);
+      } else if (!event.shielded) {
+        // Ветка shielded: true сюда не попадает намеренно. Щит гасит промах ещё
+        // в сторе, и визуально промах уже отыгран исчезновением щита в HUD и в
+        // EffectsLayer. Разбитое сердце и заморозка стали бы вторым наказанием
+        // за один и тот же промах, поэтому в PixiJS для щита нет ни одного
+        // эффекта — событие нужно только чтобы движок не рисовал лишнего.
+        spawnCrackedHeart(event.x, event.y);
+
+        // Заморозка стартует здесь, а не в обработчике клика: щит проходит мимо
+        // этой ветки и потому не останавливает игру.
+        isFreezingRef.current = true;
+        freezeTimeLeftRef.current = GAME_CONFIG.LOSE_LIFE_FREEZE_MS;
+      }
+
+      // Событие отработано — убираем сразу, иначе оно сработает на следующем кадре.
+      consumeEvent(event.id);
+    }
+  }, [spawnFloatingMessage, spawnCrackedHeart]);
+
   // --- Обработчик клика ---
   const handleCircleClick = useCallback(
     (circle: Circle) => {
       if (!circle.isActive) return;
 
       const currentTargetColor = useGameSessionStore.getState().targetColor;
+      // Координаты снимаем до reset(): круг сразу возвращается в пул.
+      const { x, y } = circle;
 
       if (circle.color === currentTargetColor) {
-        // Попадание: стор сам решает, как изменится комбо, счёт и бонусы
-        processCorrectClick();
-        spawnParticles(circle.x, circle.y, circle.color);
+        // Попадание: стор сам решает, как изменится комбо, счёт и бонусы,
+        // и копит события для визуального слоя (сообщения о вехах).
+        processCorrectClick(x, y);
+        spawnParticles(x, y, circle.color);
         circle.reset();
       } else {
-        // Промах: щит в сторе может погасить его без потери жизни
-        processWrongClick();
-
-        // Спавним эффект разбитого сердца
-        spawnCrackedHeart(circle.x, circle.y);
-
-        // Замораживаем игру через ticker
-        isFreezingRef.current = true;
-        freezeTimeLeftRef.current = GAME_CONFIG.LOSE_LIFE_FREEZE_MS;
-
+        // Промах: стор решает, погасит ли его щит, и кладёт событие в очередь.
+        // Сердце и заморозку рисует тикер — и только для события без щита.
+        processWrongClick(x, y);
         circle.reset();
       }
     },
-    [processCorrectClick, processWrongClick, spawnParticles, spawnCrackedHeart]
+    [processCorrectClick, processWrongClick, spawnParticles]
   );
 
   // --- Авто-пауза при скрытии вкладки ---
@@ -193,9 +241,11 @@ export function useGameEngine({ appRef, isAppReady }: UseGameEngineProps) {
     circlesRef.current.forEach((c) => c.destroy());
     particlesRef.current.forEach((p) => p.destroy());
     crackedHeartsRef.current.forEach((h) => h.destroy());
+    floatingMessagesRef.current.forEach((m) => m.destroy());
     circlesRef.current = [];
     particlesRef.current = [];
     crackedHeartsRef.current = [];
+    floatingMessagesRef.current = [];
 
     // Эффекты создаём ПЕРВЫМИ: порядок addChild задаёт порядок отрисовки, и слой
     // обязан оказаться под кругами, частицами и сердцами.
@@ -243,6 +293,14 @@ export function useGameEngine({ appRef, isAppReady }: UseGameEngineProps) {
       crackedHeartsRef.current.push(heart);
     }
 
+    // Создаём пул всплывающих сообщений. Последними: порядок addChild задаёт
+    // порядок отрисовки, и текст должен лежать поверх кругов, частиц и сердец.
+    for (let i = 0; i < FLOATING_MESSAGE_POOL_SIZE; i++) {
+      const message = new FloatingMessage();
+      app.stage.addChild(message);
+      floatingMessagesRef.current.push(message);
+    }
+
     return () => {
       unsubscribeEffects();
 
@@ -253,9 +311,11 @@ export function useGameEngine({ appRef, isAppReady }: UseGameEngineProps) {
       circlesRef.current.forEach((c) => c.destroy());
       particlesRef.current.forEach((p) => p.destroy());
       crackedHeartsRef.current.forEach((h) => h.destroy());
+      floatingMessagesRef.current.forEach((m) => m.destroy());
       circlesRef.current = [];
       particlesRef.current = [];
       crackedHeartsRef.current = [];
+      floatingMessagesRef.current = [];
     };
   }, [isAppReady, handleCircleClick]);
 
@@ -270,6 +330,14 @@ export function useGameEngine({ appRef, isAppReady }: UseGameEngineProps) {
       if (currentStatus !== 'playing') return;
 
       const dt = ticker.deltaMS;
+
+      // --- Очередь событий стора ---
+      //
+      // Разбираем ДО заморозки: промах без щита рождает WRONG_CLICK, и freeze
+      // должен начаться в этом же кадре, а не на следующем. На кадр приходится
+      // максимум одно-два события (клик создаёт одно), поэтому цикл не блокирует
+      // кадр и не требует бюджета времени на обработку.
+      processPendingEvents();
 
       // Обработка freeze через ticker
       if (isFreezingRef.current) {
@@ -294,6 +362,11 @@ export function useGameEngine({ appRef, isAppReady }: UseGameEngineProps) {
         }
         for (const heart of crackedHeartsRef.current) {
           heart.update(dt);
+        }
+        // Сообщения помечены ignoresFreeze, но движок этот флаг не читает —
+        // freeze разветвлён вручную, поэтому обновляем их здесь явно.
+        for (const message of floatingMessagesRef.current) {
+          message.update(dt);
         }
 
         // tickTime здесь НЕ зовётся: gameTime замирает, поэтому заморозка
@@ -331,13 +404,16 @@ export function useGameEngine({ appRef, isAppReady }: UseGameEngineProps) {
       for (const heart of crackedHeartsRef.current) {
         heart.update(dt);
       }
+      for (const message of floatingMessagesRef.current) {
+        message.update(dt);
+      }
     };
 
     app.ticker.add(ticker);
     return () => {
       app.ticker.remove(ticker);
     };
-  }, [isAppReady, tickTime, changeTargetColor, spawnCircle]);
+  }, [isAppReady, tickTime, changeTargetColor, spawnCircle, processPendingEvents]);
 
   // --- Очистка всех объектов при старте игры ---
   useEffect(() => {
@@ -366,6 +442,14 @@ export function useGameEngine({ appRef, isAppReady }: UseGameEngineProps) {
     crackedHeartsRef.current.forEach((heart) => {
       if (heart.isActive) {
         heart.reset();
+      }
+    });
+
+    // Сбрасываем всплывающие сообщения прошлой партии: они живут на сцене дольше,
+    // чем длится переход экрана, и иначе «висели» бы над новой доской.
+    floatingMessagesRef.current.forEach((message) => {
+      if (message.isActive) {
+        message.reset();
       }
     });
 
