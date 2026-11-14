@@ -1,6 +1,7 @@
 'use client';
 
 export { GamePushContext, GamePushProvider, useGamePush } from './GamePushProvider';
+export { startGameplay, stopGameplay } from './gameplay';
 export type {
   GamePushContextValue,
   GamePushInstance,

@@ -1,21 +1,22 @@
 'use client';
 
-import { AbstractIntlMessages, NextIntlClientProvider } from 'next-intl';
-import { ReactNode } from 'react';
+import { NextIntlClientProvider } from 'next-intl';
+import { type PropsWithChildren } from 'react';
 
-import { timeZone } from '@/shared/i18n';
+import { timeZone, type Locale, type LocaleMessages } from '@/shared/i18n';
 
 interface IntlProviderProps {
-  locale: string;
-  messages: Record<string, AbstractIntlMessages>;
-  children: ReactNode;
+  locale: Locale;
+  messages: LocaleMessages;
 }
 
-export function IntlProvider({ locale, messages, children }: IntlProviderProps) {
-  return (
-    // timeZone обязателен: без него next-intl падает с ENVIRONMENT_FALLBACK на клиенте.
-    <NextIntlClientProvider locale={locale} messages={messages} timeZone={timeZone}>
-      {children}
-    </NextIntlClientProvider>
-  );
-}
+export const IntlProvider = ({
+  locale,
+  messages,
+  children,
+}: PropsWithChildren<IntlProviderProps>) => (
+  // timeZone обязателен: без него next-intl падает с ENVIRONMENT_FALLBACK на клиенте.
+  <NextIntlClientProvider locale={locale} messages={messages} timeZone={timeZone}>
+    {children}
+  </NextIntlClientProvider>
+);

@@ -1,0 +1,13 @@
+{
+  "buttons": {
+    "play": "Play",
+    "back": "Back",
+    "cancel": "Cancel",
+    "retry": "Retry",
+    "menu": "Menu",
+    "leaderboard": "Leaderboard",
+    "playAgain": "Play again"
+  },
+  "loading": "Loading...",
+  "error": "Something went wrong"
+}

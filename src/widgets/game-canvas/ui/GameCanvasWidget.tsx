@@ -3,9 +3,13 @@
 import { useEffect, useRef, useState } from 'react';
 import * as PIXI from 'pixi.js';
 
+import { startGameplay, stopGameplay, useGamePush } from '@/shared/gamepush';
+
 import { useGameEngine } from '../hooks/useGameEngine';
 
-export function GameCanvasWidget() {
+export const GameCanvasWidget = () => {
+  const { gp } = useGamePush();
+
   const containerRef = useRef<HTMLDivElement>(null);
   const appRef = useRef<PIXI.Application | null>(null);
   const isInitializedRef = useRef(false);
@@ -132,6 +136,28 @@ export function GameCanvasWidget() {
     };
   }, []);
 
+  useEffect(() => {
+    // GameplayStart открывает геймплей-сессию раунда: с этого момента площадка
+    // считает игровое время. Ждём именно isAppReady — пока PixiJS не поднял
+    // WebGL-контекст и не отрисовал первый кадр, играть ещё не в чем, и сессия
+    // началась бы «в пустоте». GameStart (загрузка игры) живёт в GameRouterView:
+    // это другой сигнал, и раунд его не повторяет.
+    if (!isAppReady || !gp) return;
+
+    // Идемпотентность держит общий флаг в gameplay.ts: он же отсекает двойной
+    // прогон эффекта в StrictMode.
+    startGameplay(gp);
+  }, [gp, isAppReady]);
+
+  useEffect(
+    () => () => {
+      // Ушли с экрана игры, не доиграв до game over (меню, лидерборд, HMR):
+      // сессию закрываем здесь, иначе площадка считала бы геймплей открытым.
+      stopGameplay(gp);
+    },
+    [gp]
+  );
+
   return (
     // absolute, а не fixed: экран обёрнут в motion.div, который на время
     // переходов задаёт transform, и fixed-потомок спозиционировался бы от него.
@@ -140,4 +166,4 @@ export function GameCanvasWidget() {
       className="bg-background absolute inset-0 z-0 h-full w-full touch-none overflow-hidden"
     />
   );
-}
+};

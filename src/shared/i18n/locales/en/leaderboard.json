@@ -1,0 +1,8 @@
+{
+  "title": "Leaderboard",
+  "yourPlace": "You are <b>{place}</b> in the ranking",
+  "error": "Couldn't load the leaderboard",
+  "retry": "Retry",
+  "refresh": "Refresh",
+  "empty": "Nobody here yet. Be the first!"
+}

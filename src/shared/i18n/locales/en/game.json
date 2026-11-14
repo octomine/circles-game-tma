@@ -1,0 +1,22 @@
+{
+  "hud": {
+    "score": "Score",
+    "lives": "{count, plural, =0 {No lives} one {# life} other {# lives}}",
+    "targetColor": "Find the color",
+    "shield": "Shield",
+    "timeLeft": "{seconds, plural, =0 {Now} one {# second} other {# seconds}}"
+  },
+  "gameOver": {
+    "title": "Game over",
+    "finalScoreLabel": "Your score",
+    "bestScoreRecord": "Your best: {score}",
+    "newRecord": "NEW RECORD!"
+  },
+  "colors": {
+    "red": "Red",
+    "green": "Green",
+    "blue": "Blue",
+    "yellow": "Yellow",
+    "purple": "Purple"
+  }
+}
