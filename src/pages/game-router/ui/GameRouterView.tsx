@@ -4,6 +4,7 @@ import { type ComponentType, useEffect } from 'react';
 import { AnimatePresence, type Variants } from 'motion/react';
 import * as motion from 'motion/react-client';
 
+import { useGameAudio } from '@/features/sound-control';
 import { GameView } from '@/pages/game';
 import { useGamePush } from '@/shared/gamepush';
 import { useGameNavigation, type GameScreen } from '@/shared/navigation';
@@ -71,6 +72,11 @@ export const GameRouterView = () => {
   const { gp } = useGamePush();
 
   const { screen } = useGameNavigation();
+
+  // Подписка на звук живёт здесь, на верхнем уровне экранов: попап настроек
+  // открывают редко, а модульный аудио-сервис должен знать актуальные флаги всё
+  // время, пока игра смонтирована — иначе игровой цикл проиграет заглушённый звук.
+  useGameAudio();
 
   const Screen = SCREEN_COMPONENTS[screen];
 

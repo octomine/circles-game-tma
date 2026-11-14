@@ -1,5 +1,6 @@
 'use client';
 
+import { useCallback, useState } from 'react';
 import { Cog6ToothIcon } from '@heroicons/react/24/outline';
 import { TrophyIcon } from '@heroicons/react/24/solid';
 import * as motion from 'motion/react-client';
@@ -10,13 +11,27 @@ import { BestScoreDisplay } from '@/entities/player-score';
 import { useGameNavigation } from '@/shared/navigation';
 import { AnimatedStack, AnimatedText, Button, Card, Text, Title } from '@/shared/ui';
 
+import { SettingsPopup } from './SettingsPopup';
+
 export const MainMenuWidget = () => {
   const tMenu = useTranslations('menu');
   const tCommon = useTranslations('common');
 
   const { setScreen } = useGameNavigation();
 
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
   const startGame = useGameSessionStore((state) => state.startGame);
+
+  // Стабильные ссылки: SettingsPopup держит onClose в зависимостях эффекта с
+  // Escape, и новая функция на каждый рендер переподписывала бы слушатель.
+  const handleOpenSettings = useCallback(() => {
+    setIsSettingsOpen(true);
+  }, []);
+
+  const handleCloseSettings = useCallback(() => {
+    setIsSettingsOpen(false);
+  }, []);
 
   const handleStartGame = () => {
     // startGame() переводит сессию в 'playing': без него игровой цикл и HUD не запустятся.
@@ -26,10 +41,6 @@ export const MainMenuWidget = () => {
 
   const handleOpenLeaderboard = () => {
     setScreen('leaderboard');
-  };
-
-  const handleOpenSettings = () => {
-    // TODO: открыть экран настроек, когда он появится в GameScreen.
   };
 
   // Фон (AnimatedBackground) живёт в GameRouterView: сам экран прозрачный,
@@ -110,6 +121,10 @@ export const MainMenuWidget = () => {
           </Button>
         </AnimatedStack>
       </div>
+
+      {/* Попап живёт на уровне экрана меню, а не в GameScreen: настройки — модалка
+          поверх меню, и уходить с экрана ради них не нужно. */}
+      <SettingsPopup isOpen={isSettingsOpen} onClose={handleCloseSettings} />
     </div>
   );
 };

@@ -18,12 +18,14 @@ const MESSAGE_LOADERS: Record<Locale, () => Promise<LocaleMessages>> = {
     menu: (await import('./locales/ru/menu.json')).default,
     game: (await import('./locales/ru/game.json')).default,
     leaderboard: (await import('./locales/ru/leaderboard.json')).default,
+    settings: (await import('./locales/ru/settings.json')).default,
   }),
   en: async () => ({
     common: (await import('./locales/en/common.json')).default,
     menu: (await import('./locales/en/menu.json')).default,
     game: (await import('./locales/en/game.json')).default,
     leaderboard: (await import('./locales/en/leaderboard.json')).default,
+    settings: (await import('./locales/en/settings.json')).default,
   }),
 };
 

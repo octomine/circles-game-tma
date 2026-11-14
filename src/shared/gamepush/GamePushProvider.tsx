@@ -128,9 +128,52 @@ export interface GamePushLeaderboard {
   ) => Promise<GamePushLeaderboardRatingResponse>;
 }
 
+/**
+ * События модуля sounds. Глобальные (`mute`/`unmute`) приходят, когда звук глушит
+ * сама площадка (реклама, пауза, свёрнутая вкладка, кнопка вне игры), а парные
+ * `:music` / `:sfx` — когда меняется конкретный тип звука.
+ */
+export type GamePushSoundEvent =
+  | 'mute'
+  | 'unmute'
+  | 'mute:music'
+  | 'unmute:music'
+  | 'mute:sfx'
+  | 'unmute:sfx';
+
+/**
+ * Модуль управления звуком. SDK — единственный источник истины: он запоминает выбор
+ * игрока в storage и синхронизирует его с площадкой, поэтому своё состояние звука
+ * в полях игрока или в сторе держать не нужно и вредно — оно разойдётся с SDK.
+ */
+export interface GamePushSounds {
+  /**
+   * Выбор игрока по музыке. readonly намеренно: запись напрямую обошла бы storage
+   * и события SDK, то есть ровно тот рассинхрон, от которого уходим.
+   */
+  readonly isMusicMuted: boolean;
+  readonly isSFXMuted: boolean;
+  /** Площадка заглушила звук целиком; не то же самое, что выбор игрока. */
+  readonly isPlatformMuted: boolean;
+  /** Все звуки заглушены — объединение выбора игрока и мьюта площадки. */
+  readonly isMuted: boolean;
+  muteMusic: () => void;
+  unmuteMusic: () => void;
+  muteSFX: () => void;
+  unmuteSFX: () => void;
+  /**
+   * Подписка на события. Отписка — только через off с ТОЙ ЖЕ ссылкой на handler,
+   * иначе подписка останется в списке слушателей SDK.
+   */
+  on: (type: GamePushSoundEvent, handler: () => void) => void;
+  off: (type: GamePushSoundEvent, handler: () => void) => void;
+}
+
 export interface GamePushInstance {
   player: GamePushPlayer;
   leaderboard: GamePushLeaderboard;
+  /** Звук и музыка: состояние и управление. */
+  sounds: GamePushSounds;
   /**
    * Текущий язык игрока, ISO 639-1 ('ru', 'en', 'de') — его определяет SDK
    * по языку платформы. Может прийти с регионом ('de-AT'), поэтому код

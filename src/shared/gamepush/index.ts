@@ -13,5 +13,7 @@ export type {
   GamePushLeaderboardRatingResponse,
   GamePushLeaderboardWithMe,
   GamePushPlayer,
+  GamePushSoundEvent,
+  GamePushSounds,
   GamePushStorage,
 } from './GamePushProvider';
