@@ -36,6 +36,10 @@ const SDK_MIRRORS = [
 // Сколько ждём HEAD-пробы зеркал, прежде чем начать перебор подряд (таймаут из офиц. сниппета).
 const MIRROR_PROBE_TIMEOUT_MS = 5000;
 
+// Страховка от «зависшей» инициализации: интерфейс ждёт язык игрока, и без этого
+// таймаута недоступный CDN или незавершившийся player.ready оставили бы экран пустым.
+const INIT_TIMEOUT_MS = 8000;
+
 /**
  * Хранилище, с которым синхронизируется прогресс игрока.
  * 'cloud' — облако самого GamePush (нужно там, где у площадки нет своего облака).
@@ -124,14 +128,77 @@ export interface GamePushLeaderboard {
   ) => Promise<GamePushLeaderboardRatingResponse>;
 }
 
+/**
+ * События модуля sounds. Глобальные (`mute`/`unmute`) приходят, когда звук глушит
+ * сама площадка (реклама, пауза, свёрнутая вкладка, кнопка вне игры), а парные
+ * `:music` / `:sfx` — когда меняется конкретный тип звука.
+ */
+export type GamePushSoundEvent =
+  | 'mute'
+  | 'unmute'
+  | 'mute:music'
+  | 'unmute:music'
+  | 'mute:sfx'
+  | 'unmute:sfx';
+
+/**
+ * Модуль управления звуком. SDK — единственный источник истины: он запоминает выбор
+ * игрока в storage и синхронизирует его с площадкой, поэтому своё состояние звука
+ * в полях игрока или в сторе держать не нужно и вредно — оно разойдётся с SDK.
+ */
+export interface GamePushSounds {
+  /**
+   * Выбор игрока по музыке. readonly намеренно: запись напрямую обошла бы storage
+   * и события SDK, то есть ровно тот рассинхрон, от которого уходим.
+   */
+  readonly isMusicMuted: boolean;
+  readonly isSFXMuted: boolean;
+  /** Площадка заглушила звук целиком; не то же самое, что выбор игрока. */
+  readonly isPlatformMuted: boolean;
+  /** Все звуки заглушены — объединение выбора игрока и мьюта площадки. */
+  readonly isMuted: boolean;
+  muteMusic: () => void;
+  unmuteMusic: () => void;
+  muteSFX: () => void;
+  unmuteSFX: () => void;
+  /**
+   * Подписка на события. Отписка — только через off с ТОЙ ЖЕ ссылкой на handler,
+   * иначе подписка останется в списке слушателей SDK.
+   */
+  on: (type: GamePushSoundEvent, handler: () => void) => void;
+  off: (type: GamePushSoundEvent, handler: () => void) => void;
+}
+
 export interface GamePushInstance {
   player: GamePushPlayer;
   leaderboard: GamePushLeaderboard;
+  /** Звук и музыка: состояние и управление. */
+  sounds: GamePushSounds;
+  /**
+   * Текущий язык игрока, ISO 639-1 ('ru', 'en', 'de') — его определяет SDK
+   * по языку платформы. Может прийти с регионом ('de-AT'), поэтому код
+   * нормализуется уже на стороне i18n (resolveLocale).
+   */
+  language: string;
+  /**
+   * GameStart — игра загрузилась и готова к работе (SDK: isGameStarted).
+   * Это сигнал про загрузку приложения, а не про раунд: зовётся один раз,
+   * когда игрок уже может нажать «Играть».
+   */
+  gameStart: () => void;
+  /** GameplayStart — начало геймплей-сессии раунда (SDK: isGameplay). */
+  gameplayStart: () => void;
+  /** GameplayStop — конец геймплей-сессии: game over, пауза, уход с экрана игры. */
+  gameplayStop: () => void;
 }
 
 export interface GamePushContextValue {
   gp: GamePushInstance | null;
   isReady: boolean;
+  /** Язык игрока из SDK; null, пока SDK не инициализирован или инициализация провалилась. */
+  language: string | null;
+  /** Инициализация не удалась: SDK не загрузился или не уложился в таймаут. */
+  isInitFailed: boolean;
 }
 
 export const GamePushContext = createContext<GamePushContextValue | null>(null);
@@ -264,17 +331,40 @@ const loadSdkScript = (onFail: () => void): (() => void) => {
 export const GamePushProvider = ({ children }: PropsWithChildren) => {
   const [gp, setGp] = useState<GamePushInstance | null>(gamePushInstance);
   const [isReady, setIsReady] = useState(false);
+  const [language, setLanguage] = useState<string | null>(null);
+  const [isInitFailed, setIsInitFailed] = useState(false);
 
-  const value = useMemo<GamePushContextValue>(() => ({ gp, isReady }), [gp, isReady]);
+  const value = useMemo<GamePushContextValue>(
+    () => ({ gp, isReady, language, isInitFailed }),
+    [gp, isReady, language, isInitFailed]
+  );
 
   useEffect(() => {
     let cancelled = false;
+    let initTimeoutId: number | null = null;
 
-    // Гард: ключи не заменены на реальные — SDK не подключаем, isReady остаётся false.
+    const clearInitTimeout = () => {
+      if (initTimeoutId === null) return;
+
+      window.clearTimeout(initTimeoutId);
+      initTimeoutId = null;
+    };
+
+    // Провал помечаем явно: экран ждёт готовности языка, и молчаливое «isReady так и
+    // не стал true» означало бы вечную заглушку вместо игры.
+    const markInitFailed = () => {
+      if (cancelled) return;
+
+      setIsInitFailed(true);
+    };
+
+    // Гард: ключи не заменены на реальные — SDK не подключаем.
     if (!isConfigured) {
       console.warn(
         '[GamePush] Укажите реальные projectId и publicToken в src/shared/gamepush/GamePushProvider.tsx — SDK не загружен'
       );
+
+      markInitFailed();
 
       return () => {
         cancelled = true;
@@ -292,7 +382,12 @@ export const GamePushProvider = ({ children }: PropsWithChildren) => {
 
       if (cancelled) return;
 
+      clearInitTimeout();
+
       setGp(gpInstance);
+      // Язык читаем строго после player.ready: до синхронизации SDK ещё не получил
+      // язык платформы (Telegram присылает его в initData) и вернул бы дефолтный.
+      setLanguage(gpInstance.language ?? null);
       setIsReady(true);
     };
 
@@ -302,17 +397,32 @@ export const GamePushProvider = ({ children }: PropsWithChildren) => {
 
       return () => {
         cancelled = true;
+        clearInitTimeout();
       };
     }
+
+    initTimeoutId = window.setTimeout(() => {
+      initTimeoutId = null;
+
+      if (cancelled || gamePushInstance) return;
+
+      console.warn(
+        `[GamePush] Инициализация не завершилась за ${INIT_TIMEOUT_MS} мс — продолжаем без SDK`
+      );
+      markInitFailed();
+    }, INIT_TIMEOUT_MS);
 
     window[INIT_CALLBACK_NAME] = handleInit;
 
     const disposeScript = loadSdkScript(() => {
       console.warn('[GamePush] SDK не загрузился ни с одного зеркала');
+      clearInitTimeout();
+      markInitFailed();
     });
 
     return () => {
       cancelled = true;
+      clearInitTimeout();
       disposeScript();
       // Снимаем глобальный колбэк, чтобы не оставлять ссылку на размонтированный компонент.
       delete window[INIT_CALLBACK_NAME];

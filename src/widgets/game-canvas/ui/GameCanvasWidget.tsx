@@ -3,9 +3,13 @@
 import { useEffect, useRef, useState } from 'react';
 import * as PIXI from 'pixi.js';
 
+import { startGameplay, stopGameplay, useGamePush } from '@/shared/gamepush';
+
 import { useGameEngine } from '../hooks/useGameEngine';
 
-export function GameCanvasWidget() {
+export const GameCanvasWidget = () => {
+  const { gp } = useGamePush();
+
   const containerRef = useRef<HTMLDivElement>(null);
   const appRef = useRef<PIXI.Application | null>(null);
   const isInitializedRef = useRef(false);
@@ -50,7 +54,10 @@ export function GameCanvasWidget() {
 
     app
       .init({
-        background: '#1c1c1e',
+        // Цвет совпадает с --color-background темы (#121216) намеренно: канвас
+        // непрозрачен, и это и есть «сплошной тёмный фон» игрового экрана,
+        // поверх которого ложится слой эффектов (тонировка, свечение, щит).
+        background: 0x121216,
         antialias: true,
         resolution: window.devicePixelRatio || 1,
         autoDensity: true,
@@ -59,7 +66,10 @@ export function GameCanvasWidget() {
       .then(() => {
         if (cancelled || !isMountedRef.current || !containerRef.current) {
           try {
-            app.destroy(true, { children: true, texture: true });
+            // { removeView: true }, а не `true`: `true` освобождает ГЛОБАЛЬНЫЕ пулы PixiJS
+            // (TexturePool, CanvasPool, BigPool), общие для всех приложений на странице —
+            // в этот момент ещё жив AnimatedBackground, и его ресурсы сносились бы под ним.
+            app.destroy({ removeView: true }, { children: true, texture: true });
           } catch (e) {
             console.warn('Cleanup after unmount:', e);
           }
@@ -126,13 +136,34 @@ export function GameCanvasWidget() {
     };
   }, []);
 
+  useEffect(() => {
+    // GameplayStart открывает геймплей-сессию раунда: с этого момента площадка
+    // считает игровое время. Ждём именно isAppReady — пока PixiJS не поднял
+    // WebGL-контекст и не отрисовал первый кадр, играть ещё не в чем, и сессия
+    // началась бы «в пустоте». GameStart (загрузка игры) живёт в GameRouterView:
+    // это другой сигнал, и раунд его не повторяет.
+    if (!isAppReady || !gp) return;
+
+    // Идемпотентность держит общий флаг в gameplay.ts: он же отсекает двойной
+    // прогон эффекта в StrictMode.
+    startGameplay(gp);
+  }, [gp, isAppReady]);
+
+  useEffect(
+    () => () => {
+      // Ушли с экрана игры, не доиграв до game over (меню, лидерборд, HMR):
+      // сессию закрываем здесь, иначе площадка считала бы геймплей открытым.
+      stopGameplay(gp);
+    },
+    [gp]
+  );
+
   return (
     // absolute, а не fixed: экран обёрнут в motion.div, который на время
     // переходов задаёт transform, и fixed-потомок спозиционировался бы от него.
     <div
       ref={containerRef}
-      className="absolute inset-0 z-0 h-full w-full touch-none overflow-hidden"
-      style={{ backgroundColor: 'var(--tg-theme-bg-color, #1c1c1e)' }}
+      className="bg-background absolute inset-0 z-0 h-full w-full touch-none overflow-hidden"
     />
   );
-}
+};

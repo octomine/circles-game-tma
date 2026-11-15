@@ -1,15 +1,24 @@
 'use client';
 
-import { type ComponentType } from 'react';
+import { type ComponentType, useEffect } from 'react';
 import { AnimatePresence, type Variants } from 'motion/react';
 import * as motion from 'motion/react-client';
 
+import { useGameAudio } from '@/features/sound-control';
 import { GameView } from '@/pages/game';
+import { useGamePush } from '@/shared/gamepush';
 import { useGameNavigation, type GameScreen } from '@/shared/navigation';
 import { AnimatedBackground } from '@/shared/ui';
 import { GameOverWidget } from '@/widgets/game-over';
 import { LeaderboardWidget } from '@/widgets/leaderboard-screen';
 import { MainMenuWidget } from '@/widgets/main-menu';
+
+/**
+ * GameStart отправляем один раз за жизнь страницы: сигнал означает «игра
+ * загрузилась и готова к работе», а не «начался раунд». Возврат в меню после
+ * партии не должен повторять его, поэтому флаг модульный, а не useRef.
+ */
+let isGameStartSent = false;
 
 const SCREEN_COMPONENTS: Record<GameScreen, ComponentType> = {
   menu: MainMenuWidget,
@@ -60,20 +69,68 @@ const screenVariants: Record<GameScreen, Variants> = {
 };
 
 export const GameRouterView = () => {
+  const { gp } = useGamePush();
+
   const { screen } = useGameNavigation();
 
+  // Подписка на звук живёт здесь, на верхнем уровне экранов: попап настроек
+  // открывают редко, а модульный аудио-сервис должен знать актуальные флаги всё
+  // время, пока игра смонтирована — иначе игровой цикл проиграет заглушённый звук.
+  useGameAudio();
+
   const Screen = SCREEN_COMPONENTS[screen];
+
+  useEffect(() => {
+    // GameStart — обязательный пункт чек-листа GamePush. Это сигнал «игра
+    // загрузилась и готова к работе», поэтому ждём первый ОТРИСОВАННЫЙ кадр:
+    // приложение уже ждёт язык из SDK и до этого держит заглушку, а тут меню
+    // на экране и кнопка «Играть» действительно нажимается.
+    if (!gp || isGameStartSent) return;
+
+    let innerFrameId: number | null = null;
+
+    // Двойной rAF: колбэк первого кадра выполняется ДО отрисовки, второго — после,
+    // то есть разметка уже на экране. Одного rAF мало — сигнал ушёл бы в кадр,
+    // который ещё не показан игроку.
+    const outerFrameId = requestAnimationFrame(() => {
+      innerFrameId = requestAnimationFrame(() => {
+        innerFrameId = null;
+
+        // Флаг ставим здесь, а не синхронно: иначе cleanup StrictMode отменил бы
+        // кадр, а повторный прогон вышел бы по флагу — сигнал не ушёл бы вовсе.
+        if (isGameStartSent) return;
+
+        isGameStartSent = true;
+
+        try {
+          gp.gameStart();
+        } catch (error) {
+          // Сбой сигнала не должен ронять экран: это инфраструктура площадки.
+          console.warn('[GamePush] gameStart не выполнился:', error);
+        }
+      });
+    });
+
+    return () => {
+      cancelAnimationFrame(outerFrameId);
+
+      if (innerFrameId !== null) cancelAnimationFrame(innerFrameId);
+    };
+  }, [gp]);
 
   return (
     // isolate обязателен: он делает корень stacking context, иначе фолбэк-фон
     // корня (bg-background) рисовался бы ПОВЕРХ AnimatedBackground, у которого
     // отрицательный z-index, и PixiJS-слой был бы не виден.
-    <div className="bg-background relative isolate h-screen w-full overflow-hidden">
+    <div className="bg-background relative isolate h-dvh w-full overflow-hidden">
       {/* Фон живёт на уровне роутера, а не внутри каждого экрана: Pixi-приложение
           инициализируется один раз и не пересоздаётся на каждом переходе, а
           экраны сменяются поверх него. bg-background — цвет на время, пока
           динамически импортируется pixi.js. */}
-      <AnimatedBackground />
+      {/* В игре фон размонтируем, а не прячем: под игровым канвасом он бесполезен,
+          но продолжал бы тикать свой Pixi-тикер и жечь кадры. Экран игры рисует
+          сплошной bg-background. */}
+      {screen !== 'game' && <AnimatedBackground />}
 
       {/* mode="wait": уходящий экран сначала доигрывает свой exit, и только потом
           монтируется новый. Без этого оба экрана (absolute inset-0) жили бы

@@ -14,8 +14,8 @@
 
 - **Next.js 16 (App Router) в режиме статического экспорта** — в `next.config.ts` задано `output: 'export'`, `trailingSlash: true` и `assetPrefix: './'` для production-сборки. Приложение собирается в набор статических файлов, серверный рантайм не используется.
 - **Одна страница.** `app/page.tsx` рендерит `GameRouterView`; экраны (`menu` | `game` | `gameover` | `leaderboard`) переключаются React-состоянием, URL не меняется.
-- **Игровое поле — PixiJS 8 (WebGL)**, состояние — Zustand, анимации интерфейса — Motion, стили — Tailwind CSS v4, переводы — next-intl (сейчас только русский).
-- **Рекорд и лидерборд — через GamePush SDK** (облако GamePush) с локальным fallback в `localStorage`.
+- **Игровое поле — PixiJS 8 (WebGL)**, состояние — Zustand, анимации интерфейса — Motion, стили — Tailwind CSS v4, переводы — next-intl (`ru` и `en`, язык берётся из GamePush).
+- **Рекорд и лидерборд — через GamePush SDK** (облако GamePush) с локальным fallback в `localStorage`; там же — настройки звука и геймплей-сессии площадки.
 
 Проверенные версии зависимостей (по установленным пакетам):
 
@@ -27,6 +27,7 @@
 | `zustand`             | 5.0.14 |
 | `next-intl`           | 4.13.0 |
 | `motion`              | 14.6.0 |
+| `@heroicons/react`    | 2.2.0  |
 | `tailwindcss`         | 4.3.0  |
 | `typescript`          | 5.9.3  |
 | `eslint`              | 9.39.4 |
@@ -44,15 +45,16 @@
 - **Смена целевого цвета** каждые 10 с. В HUD — круговой таймер; последние 3 с индикатор краснеет.
 - **Комбо (Acceleration Streak)** — серия попаданий, каждое из которых быстрее предыдущего минимум на 20 мс. Клик чаще 80 мс для комбо игнорируется (анти-спам), пауза больше 2000 мс сбрасывает серию. Комбо сбрасывается и само, если с последнего попадания прошло больше, чем длился предыдущий интервал.
 - **Очки** — базово 10 за попадание, умножаются на множитель комбо: ×4 при комбо ≥7, ×3 при ≥5, ×2 при ≥3, иначе ×1.
-- **Вехи комбо:** комбо 3 → +1 жизнь (не выше 5), комбо 5 → щит. Щит гасит один промах целиком: без потери жизни и без сброса комбо. Вехи комбо 7 и 10 фиксируются, но бонусов за ними пока нет.
+- **Вехи комбо:** комбо 3 → щит, комбо 5 → +1 жизнь (потолок — `MAX_LIVES = 5`). Щит гасит один промах целиком: без потери жизни и без сброса комбо. Вехи комбо 7 и 10 фиксируются в `milestonesHit`, но бонусов за ними пока нет.
 - **Промах** — пауза 750 мс (`LOSE_LIFE_FREEZE_MS`), эффект разбитого сердца, −1 жизнь. После последней жизни игра уходит на экран результатов.
-- **Гистограмма интервалов** внизу HUD: завершённые столбцы синие, активный столбец золотой, пока укладывается в предыдущий интервал, и красный, когда перерос его (такой клик сбросит комбо).
+- **Башня комбо** внизу HUD: завершённые интервалы — кирпичики, активный столбик золотой, пока укладывается в предыдущий интервал, и красный, когда перерос его (такой клик сбросит комбо). Высота активного столбика пишется через `MotionValue` из `requestAnimationFrame`, поэтому не даёт ре-рендеров.
+- **Всплывающие сообщения** о вехах (🛡️, ❤️) — `FloatingMessage` в Pixi-сцене: проявляются с задержкой, поднимаются и затухают; заморозка за промах их не останавливает.
 - **Пауза** — при скрытии вкладки игра встаёт на паузу, игровое время и комбо замирают; при возврате игра продолжается с того же места.
 
 ### Экраны
 
-- **Меню** — старт игры, текущий рекорд, переход в лидерборд, кнопка настроек (заглушка).
-- **Игра** — PixiJS-канвас и HUD: счёт, жизни, целевой цвет с круговым таймером, индикатор щита, гистограмма комбо.
+- **Меню** — старт игры, текущий рекорд, переход в лидерборд, кнопка настроек: открывает попап с переключателями музыки и звуковых эффектов (состояние — в `gp.sounds`, SDK его запоминает между запусками).
+- **Игра** — PixiJS-канвас и HUD: счёт, жизни, целевой цвет с круговым таймером, индикатор щита, башня комбо.
 - **Результаты** — счёт с анимацией накрутки (30 шагов за 1.5 с), отметка «новый рекорд», сохранение результата, кнопки «Играть снова» / «Лидерборд» / «В меню».
 - **Лидерборд** — топ-20 по полю `score`, место текущего игрока и 5 ближайших соседей, кнопка обновления, повтор при ошибке загрузки.
 - Переходы между экранами — Motion (fade, zoom, свайпы), фон — анимированный градиент.
@@ -60,13 +62,13 @@
 ### Известные ограничения
 
 - **Telegram-интеграция не подключена.** `TelegramProvider` написан и экспортируется, но не включён в дерево провайдеров (`AppProviders` собирает только GamePush, Intl и Navigation), поэтому тема, данные пользователя и haptics из Telegram WebApp сейчас не используются. Единственный потребитель `useTelegram` — виджет `TelegramDebugWidget`, который нигде не рендерится. В CSS для переменных `--tg-theme-*` заданы тёмные фолбэки.
-- **Язык один — русский** (`locales = ['ru']`).
-- **Кнопка настроек** в главном меню ничего не делает (`TODO`).
+- **Звука как ассетов нет.** `audioService` — заглушка: `playSfx`/`playMusic` только логируют вызов (`TODO` на Howl / `PIXI.sound`). Работает только управление мьютом через `gp.sounds`; в игровом цикле звуки пока не вызываются.
 - **Вехи `slowdown` и `all`** только фиксируются в состоянии — механики слоудауна нет.
 - **`public/` пуста**: статических файлов нет, иконка — `app/favicon.ico`.
-- **Метаданные страницы дефолтные**: `title: 'Create Next App'`, в `app/layout.tsx` указан `lang="en"`.
+- **Метаданные страницы дефолтные**: `title: 'Create Next App'`. В `app/layout.tsx` статически стоит `lang="en"`, фактическую локаль `IntlProviderWrapper` проставляет в `document.documentElement.lang` уже на клиенте.
 - **Автотестов нет** (подробнее в разделе «Тесты»).
 - **Telegram-мок не активируется**: он включается только при `NEXT_PUBLIC_ENABLE_MOCK=true` и внутри неподключённого `TelegramProvider`.
+- **Лидерборд и рекорд требуют GamePush.** Без SDK (не загрузился CDN, не задан токен) таблица покажет ошибку, а рекорд останется только в `localStorage`.
 
 ---
 
@@ -167,21 +169,38 @@ export const COMBO_CONFIG = {
     { minCombo: 3, mult: 2 },
     { minCombo: 1, mult: 1 },
   ],
-  MILESTONES: { 3: 'extraLife', 5: 'shield', 7: 'slowdown', 10: 'all' },
+  MILESTONES: { 3: 'shield', 5: 'extraLife', 7: 'slowdown', 10: 'all' },
+  // Башня комбо (ComboTower)
+  TOWER: {
+    HEIGHT_VH: 75, // высота башни в vh
+    MAX_VISIBLE_BRICKS: 10, // сколько кирпичиков видно
+    BRICK_HEIGHT: 16, // px
+    GAP: 4, // px между кирпичиками
+    WIDTH: 24, // px ширина столбика
+  },
 } as const;
 ```
 
+### Параметры эффектов
+
+В [`src/entities/game-session/config/uiConfig.ts`](src/entities/game-session/config/uiConfig.ts) — `UI_CONFIG`: тонировка и свечение фона, щит, а также `FloatingMessage` (задержка 150 мс между событиями, размер шрифта 48, жизнь 1000 мс, скорость подъёма 0.08 px/мс).
+
 ### GamePush
 
-`projectId` и `publicToken` захардкожены в [`src/shared/gamepush/GamePushProvider.tsx`](src/shared/gamepush/GamePushProvider.tsx) (`PROJECT_ID = 31261`). SDK грузится с зеркал CDN; если токен не заполнен, SDK не загружается вообще, и приложение работает на локальном рекорде.
+`projectId` и `publicToken` захардкожены в [`src/shared/gamepush/GamePushProvider.tsx`](src/shared/gamepush/GamePushProvider.tsx) (`PROJECT_ID = 31261`). SDK грузится с зеркал CDN по официальному failover-сценарию: параллельные HEAD-пробы (таймаут 5 с), затем скрипт с первого ответившего зеркала, при ошибке — следующее. Если токен пустой или равен `REPLACE_ME`, SDK не загружается вообще; если инициализация не уложилась в 8 с, провайдер выставляет `isInitFailed`, и игра продолжает работать без SDK.
 
 - `score` — числовое поле игрока в панели GamePush: используется и для рекорда, и для лидерборда. Запись — `player.set(...)` + `player.sync({ storage: 'cloud' })`, только если новый результат больше сохранённого.
 - `fallback_bestScore` — ключ `localStorage`, куда пишется рекорд, когда облако недоступно (см. [`src/entities/player-score/model/constants.ts`](src/entities/player-score/model/constants.ts)).
+- `sounds` — мьют музыки и эффектов. SDK — единственный источник истины: `useGameSounds` подписывается на `mute`/`unmute` и `:music`/`:sfx`, а переключение идёт методами SDK, не локальным стейтом.
+- `language` — язык игрока (`ISO 639-1`, может прийти с регионом); нормализуется в `resolveLocale`, неподдерживаемое сводится к `en`.
+- Сигналы площадки: `gameStart()` — один раз за жизнь страницы после первого отрисованного кадра (`GameRouterView`); `gameplayStart()`/`gameplayStop()` — границы раунда, идемпотентны через модульный флаг (`src/shared/gamepush/gameplay.ts`).
 
 ### Тема и переводы
 
 - Цвета интерфейса — в [`src/app/styles/globals.css`](src/app/styles/globals.css) через `@theme` Tailwind v4 (`tailwind.config` не нужен). Переменные `--tg-theme-*` объявлены там же тёмными фолбэками; рантайм-подстановка значений из Telegram не подключена.
-- Тексты — [`src/shared/i18n/locales/ru/`](src/shared/i18n/locales/ru): `common.json`, `menu.json`, `game.json`, `leaderboard.json`. Неймспейсы подключаются вручную в [`src/shared/i18n/request.ts`](src/shared/i18n/request.ts), список языков — в [`src/shared/i18n/config.ts`](src/shared/i18n/config.ts).
+- Тексты — [`src/shared/i18n/locales/`](src/shared/i18n/locales): две локали (`ru`, `en`) по пять неймспейсов — `common.json`, `menu.json`, `game.json`, `leaderboard.json`, `settings.json`.
+- Неймспейсы регистрируются вручную в [`src/shared/i18n/messages.ts`](src/shared/i18n/messages.ts) (лоадеры по локалям, статические пути для бандлера), список языков и `timeZone` — в [`src/shared/i18n/config.ts`](src/shared/i18n/config.ts), [`request.ts`](src/shared/i18n/request.ts) только выбирает локаль для серверного рендера.
+- Серверный рендер и статический экспорт всегда идут на `ru`; после готовности SDK `IntlProviderWrapper` (`app/providers.tsx`) подгружает чанк нужной локали, а `en` служит фолбэком.
 
 ---
 
@@ -198,8 +217,8 @@ pnpm build         # production-сборка
 
 Что проверено в этом окружении:
 
-- `pnpm type-check` — **ошибок нет** (запускалось как `tsc --noEmit`; штатный скрипт в режиме read-only не смог перезаписать `tsconfig.tsbuildinfo`).
-- `pnpm lint` — **0 ошибок, 1 warning**: неиспользуемый параметр `_e` в `src/widgets/game-canvas/ui/GameCanvasWidget.tsx`.
+- `pnpm type-check` — **ошибок нет** (проверено как `tsc --noEmit --incremental false`: штатный скрипт в режиме read-only не может перезаписать `tsconfig.tsbuildinfo`).
+- `pnpm lint` — **0 ошибок, 1 warning**: неиспользуемый параметр `_e` в `src/widgets/game-canvas/ui/GameCanvasWidget.tsx` (заглушка `catch` в проверке WebGL).
 - `pnpm build` — **[не проверено]**.
 
 Автоматизация:
@@ -217,45 +236,49 @@ pnpm build         # production-сборка
 ```
 circles-game-tma/
 ├── app/                                       # точки входа Next.js
-│   ├── layout.tsx                             # html/body, шрифт Nunito, провайдеры
-│   ├── providers.tsx                          # AppProviders: GamePush + Intl + Navigation
+│   ├── layout.tsx                             # html/body, локальный Nunito, viewport, провайдеры
+│   ├── providers.tsx                          # AppProviders: GamePush → Intl → Navigation
 │   ├── page.tsx                               # рендерит GameRouterView
+│   ├── fonts/                                 # Nunito woff2 (cyrillic + latin, 400/700/900)
 │   └── favicon.ico
+├── pages/README.md                            # заглушка: снимает конфликт App Router с FSD
 └── src/
     ├── app/                                   # инфраструктура приложения
     │   ├── providers/                         # IntlProvider, TelegramProvider*
     │   ├── styles/globals.css                 # тема Tailwind v4, фолбэки --tg-theme-*
     │   └── types/telegram.d.ts
     ├── pages/                                 # композиция экранов
-    │   ├── game/ui/GameView.tsx
-    │   └── game-router/ui/GameRouterView.tsx  # переключение экранов и Motion-переходы
+    │   ├── game/ui/GameView.tsx               # канвас + HUD, мосты «стор → экран/GamePush»
+    │   └── game-router/ui/GameRouterView.tsx  # карта экранов, Motion-переходы, фон, звук
     ├── widgets/
-    │   ├── main-menu/                         # главное меню
+    │   ├── main-menu/                         # MainMenuWidget, SettingsPopup
     │   ├── game-canvas/                       # PixiJS-поле
-    │   │   ├── lib/                           # GameObject, Circle, Particle, CrackedHeart
+    │   │   ├── lib/                           # GameObject, Circle, Particle, CrackedHeart,
+    │   │   │                                  # EffectsLayer, FloatingMessage
     │   │   ├── hooks/useGameEngine.ts         # игровой цикл, спавн, freeze, пауза
     │   │   └── ui/GameCanvasWidget.tsx
-    │   ├── game-hud/                          # ScoreDisplay, LivesDisplay,
-    │   │                                      # TargetColorIndicator, ShieldIndicator
+    │   ├── game-hud/                          # ScoreDisplay, LivesDisplay (жизни + щит),
+    │   │                                      # TargetColorIndicator, ComboTower из entities
     │   ├── game-over/                         # экран результатов
     │   ├── leaderboard-screen/                # экран лидерборда
     │   └── telegram-debug/                    # debug-виджет (нигде не рендерится)
     ├── features/
     │   ├── leaderboard/                       # useFetchLeaderboard, usePlayerRating, mappers
-    │   └── save-score/                        # useSaveScore
+    │   ├── save-score/                        # useSaveScore
+    │   └── sound-control/                     # audioService, useGameAudio, useGameSounds
     ├── entities/
     │   ├── game-session/                      # Zustand-стор
     │   │   ├── model/                         # gameSessionStore.ts, defaults.ts
-    │   │   ├── config/                        # constants.ts, comboConfig.ts
+    │   │   ├── config/                        # constants.ts, comboConfig.ts, uiConfig.ts
     │   │   ├── types/                         # gameSessionStore.types.ts
-    │   │   └── ui/ComboHistogram/             # гистограмма интервалов комбо
+    │   │   └── ui/                            # ComboTower (в HUD), ComboHistogram (не используется)
     │   └── player-score/                      # рекорд: облако GamePush + fallback
     └── shared/
-        ├── gamepush/                          # загрузка SDK и обёртка над gp
-        ├── i18n/                              # config.ts, request.ts, locales/ru/
+        ├── gamepush/                          # загрузка SDK, useGamePush, gameplay-сигналы
+        ├── i18n/                              # config.ts, request.ts, messages.ts, locales/{ru,en}/
         ├── lib/                               # cn.ts, number.ts, telegram/, telegram-mock.ts
         ├── navigation/                        # экраны в React-состоянии
-        └── ui/                                # Button, Card, Text, Title, Animated*
+        └── ui/                                # Button, Card, Toggle, Typography, Animated*
 ```
 
 \* `TelegramProvider` экспортируется, но в дерево провайдеров не включён — см. «Известные ограничения».
@@ -266,9 +289,12 @@ circles-game-tma/
 
 - `Circle` — кликабельный круг: рисует себя, считает возраст, анимирует масштаб и меняет pivot в середине жизни;
 - `Particle` — визуальный эффект попадания;
-- `CrackedHeart` — эффект потери жизни.
+- `CrackedHeart` — эффект потери жизни;
+- `FloatingMessage` — всплывающий текст вехи комбо: `PIXI.Text` создаётся один раз в конструкторе и переиспользуется из пула.
 
-Пулы объектов создаются один раз при инициализации канваса, в игровом цикле новые объекты не создаются. Во время freeze обновляются только частицы и сердце — это ветвление реализовано в `useGameEngine` вручную; объявленный в `GameObject` флаг `ignoresFreeze` движок не читает.
+Отдельно стоит `EffectsLayer` — `PIXI.Container` под кругами: тонировка фона, свечение по краям (запекается в текстуру на размер экрана) и иконка щита. В тикере он не обновляется: всё меняется по событиям стора.
+
+Пулы объектов создаются один раз при инициализации канваса, в игровом цикле новые объекты не создаются. Во время freeze обновляются только частицы, сердце и всплывающие сообщения — это ветвление реализовано в `useGameEngine` вручную; объявленный в `GameObject` флаг `ignoresFreeze` движок не читает.
 
 ---
 

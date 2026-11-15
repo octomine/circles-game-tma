@@ -57,7 +57,7 @@ export const LeaderboardWidget = () => {
   // Фон (AnimatedBackground) живёт в GameRouterView: сам экран прозрачный,
   // иначе он перекрыл бы PixiJS-слой.
   return (
-    <div className="relative flex min-h-screen flex-col p-6">
+    <div className="relative flex min-h-dvh flex-col p-6">
       <div className="relative z-10 mx-auto flex w-full max-w-md flex-1 flex-col">
         <div className="mb-6 flex items-center justify-between">
           <Title as="h1">{t('title')}</Title>

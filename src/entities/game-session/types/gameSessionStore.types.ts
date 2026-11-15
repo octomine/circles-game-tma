@@ -4,6 +4,21 @@ export type GameStatus = 'menu' | 'playing' | 'paused' | 'gameover';
 // Строгий тип для HEX-цветов (например, '#FF5733')
 export type ColorHex = `#${string}`;
 
+/**
+ * Событие игрового слоя.
+ *
+ * Стор их только копит, а применяет движок в тикере: так визуальные эффекты
+ * (сообщения, разбитое сердце, заморозка) не зависят от рендеров React и не
+ * тянут подписки на поля, которые меняются каждый кадр.
+ *
+ * `delay` — сколько миллисекунд сообщению ждать перед появлением. Пачка
+ * событий из одного апдейта получает 0, MESSAGE_DELAY_MS, 2 * MESSAGE_DELAY_MS…
+ * поэтому сообщения проявляются по очереди, а не наплывают одним кадром.
+ */
+export type GameEvent =
+  | { id: string; type: 'SPAWN_MESSAGE'; x: number; y: number; text: string; delay: number }
+  | { id: string; type: 'WRONG_CLICK'; x: number; y: number; shielded: boolean; delay: number };
+
 // Чистые данные состояния
 export interface GameSessionData {
   status: GameStatus;
@@ -30,6 +45,11 @@ export interface GameSessionData {
   milestonesHit: number[];
   /** Интервалы последних попаданий, мс: исходные данные для гистограммы. */
   intervalHistory: number[];
+  /**
+   * Очередь событий «стор → движок». Чистится при старте и сбросе игры (дефолты),
+   * вычитывается тикером через consumeEvent.
+   */
+  pendingEvents: GameEvent[];
 }
 
 // Действия, которые могут изменять состояние
@@ -40,10 +60,18 @@ export interface GameSessionActions {
   loseLife: () => void;
   changeTargetColor: () => void; // Выбирает новый случайный цвет
   tickTime: (deltaMs: number) => void; // Обновление таймеров из game loop (мс)
-  /** Попадание по нужному цвету: пересчитывает комбо и начисляет очки. */
-  processCorrectClick: () => void;
-  /** Промах: щит гасит его целиком, иначе сброс комбо и минус жизнь. */
-  processWrongClick: () => void;
+  /**
+   * Попадание по нужному цвету: пересчитывает комбо, начисляет очки и копит
+   * события для визуального слоя. x/y — точка клика (центр круга).
+   */
+  processCorrectClick: (x: number, y: number) => void;
+  /**
+   * Промах: щит гасит его целиком, иначе сброс комбо и минус жизнь.
+   * x/y нужны, чтобы событие нарисовало эффект в точке клика.
+   */
+  processWrongClick: (x: number, y: number) => void;
+  /** Убрать обработанное событие из очереди по id. */
+  consumeEvent: (id: string) => void;
   /** Пауза: игровое время и комбо замирают, серия сохраняется. */
   pauseGame: () => void;
   /** Вернуть игру из паузы. */

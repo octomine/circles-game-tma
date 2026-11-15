@@ -100,7 +100,7 @@ export const GameOverWidget = () => {
   const showRecordPending = !isScoreSaved;
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center p-6">
+    <div className="relative flex min-h-dvh items-center justify-center p-6">
       <div className="relative z-10 w-full max-w-sm">
         <Card className="flex w-full flex-col items-center p-8">
           <Text className="text-text-muted mb-2 text-sm tracking-widest uppercase">
