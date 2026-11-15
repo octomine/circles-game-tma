@@ -53,7 +53,7 @@
 
 ### Экраны
 
-- **Меню** — старт игры, текущий рекорд, переход в лидерборд, кнопка настроек: открывает попап с переключателями музыки и звуковых эффектов (состояние — в `gp.sounds`, SDK его запоминает между запусками).
+- **Меню** — старт игры, текущий рекорд, переход в лидерборд, кнопка настроек: открывает попап с треугольными слайдерами громкости музыки и эффектов. Мьют — в `gp.sounds` (SDK запоминает его между запусками), громкость — в полях игрока `musicVolume`/`sfxVolume` облака GamePush. Первое нажатие «Играть» запускает фоновую музыку — так обходится блокировка автовоспроизведения.
 - **Игра** — PixiJS-канвас и HUD: счёт, жизни, целевой цвет с круговым таймером, индикатор щита, башня комбо.
 - **Результаты** — счёт с анимацией накрутки (30 шагов за 1.5 с), отметка «новый рекорд», сохранение результата, кнопки «Играть снова» / «Лидерборд» / «В меню».
 - **Лидерборд** — топ-20 по полю `score`, место текущего игрока и 5 ближайших соседей, кнопка обновления, повтор при ошибке загрузки.
@@ -62,7 +62,8 @@
 ### Известные ограничения
 
 - **Telegram-интеграция не подключена.** `TelegramProvider` написан и экспортируется, но не включён в дерево провайдеров (`AppProviders` собирает только GamePush, Intl и Navigation), поэтому тема, данные пользователя и haptics из Telegram WebApp сейчас не используются. Единственный потребитель `useTelegram` — виджет `TelegramDebugWidget`, который нигде не рендерится. В CSS для переменных `--tg-theme-*` заданы тёмные фолбэки.
-- **Звука как ассетов нет.** `audioService` — заглушка: `playSfx`/`playMusic` только логируют вызов (`TODO` на Howl / `PIXI.sound`). Работает только управление мьютом через `gp.sounds`; в игровом цикле звуки пока не вызываются.
+- **Звуковых ассетов нет.** `audioService` (`src/shared/lib/audio`) собран на Howler.js: музыка — `html5` + `loop` + `preload: false`, эффекты — `preload: true`. Файлы `public/audio/*.ogg` не добавлены, поэтому при загрузке в консоль уходит `console.warn`, а игра продолжается молча. Звуки попадания, промаха и вех вызываются из очереди `GameEvent` в `useGameEngine`; питч попадания растёт вместе с комбо (`AUDIO_CONFIG.COMBO_RATES`).
+- **Поля `musicVolume`/`sfxVolume` должны существовать в панели GamePush** (тип «число»). Без них громкость читается как 100 %, а запись в облако логирует ошибку и не сохраняется между запусками.
 - **Вехи `slowdown` и `all`** только фиксируются в состоянии — механики слоудауна нет.
 - **`public/` пуста**: статических файлов нет, иконка — `app/favicon.ico`.
 - **Метаданные страницы дефолтные**: `title: 'Create Next App'`. В `app/layout.tsx` статически стоит `lang="en"`, фактическую локаль `IntlProviderWrapper` проставляет в `document.documentElement.lang` уже на клиенте.
@@ -265,20 +266,22 @@ circles-game-tma/
     ├── features/
     │   ├── leaderboard/                       # useFetchLeaderboard, usePlayerRating, mappers
     │   ├── save-score/                        # useSaveScore
-    │   └── sound-control/                     # audioService, useGameAudio, useGameSounds
+    │   └── sound-control/                     # useGameAudio, useGameSounds, constants
     ├── entities/
     │   ├── game-session/                      # Zustand-стор
     │   │   ├── model/                         # gameSessionStore.ts, defaults.ts
-    │   │   ├── config/                        # constants.ts, comboConfig.ts, uiConfig.ts
+    │   │   ├── config/                        # constants.ts, comboConfig.ts, uiConfig.ts,
+    │   │   │                                  # audioConfig.ts
     │   │   ├── types/                         # gameSessionStore.types.ts
     │   │   └── ui/                            # ComboTower (в HUD), ComboHistogram (не используется)
     │   └── player-score/                      # рекорд: облако GamePush + fallback
     └── shared/
         ├── gamepush/                          # загрузка SDK, useGamePush, gameplay-сигналы
         ├── i18n/                              # config.ts, request.ts, messages.ts, locales/{ru,en}/
-        ├── lib/                               # cn.ts, number.ts, telegram/, telegram-mock.ts
+        ├── lib/                               # audio/ (audioService на Howler), cn.ts, number.ts,
+        │                                      # telegram/, telegram-mock.ts
         ├── navigation/                        # экраны в React-состоянии
-        └── ui/                                # Button, Card, Toggle, Typography, Animated*
+        └── ui/                                # Button, Card, Toggle, VolumeSlider, Typography, Animated*
 ```
 
 \* `TelegramProvider` экспортируется, но в дерево провайдеров не включён — см. «Известные ограничения».

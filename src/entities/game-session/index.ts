@@ -1,4 +1,5 @@
 export { useGameSessionStore } from './model/gameSessionStore';
+export * from './config/audioConfig';
 export * from './config/constants';
 export * from './config/comboConfig';
 export * from './config/uiConfig';

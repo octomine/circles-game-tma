@@ -12,7 +12,8 @@
 - next-intl 4.13.0 — локали `ru` и `en`; язык берётся из GamePush (`gp.language`), `en` — фолбэк для неподдерживаемых кодов
 - GamePush SDK — внешний скрипт с зеркал CDN (HEAD-пробы + failover), обёртка в `src/shared/gamepush`: `player`, `leaderboard`, `sounds`, `language`, `gameStart`/`gameplayStart`/`gameplayStop`
 - `@heroicons/react` 2.2.0 — иконки UI и SVG-строка щита для Pixi-сцены (`EffectsLayer`)
-- Звука как ассетов нет: `audioService` — заглушка с `console.log`, а состояние мьюта живёт в `gp.sounds`
+- Howler.js 2.2.4 (+`@types/howler`) — звук: `audioService` в `src/shared/lib/audio`, конфиг ассетов — `AUDIO_CONFIG` в `entities/game-session/config`
+- Звуковых ассетов нет: файлы `public/audio/*.ogg` не добавлены, сервис логирует `console.warn` на ошибке загрузки и работает молча
 - ESLint 9.39.4 (flat config) + Prettier 3.8.4 + Husky 9/lint-staged 17; `@vercel/analytics` и `@vercel/speed-insights` в зависимостях, но в коде не используются
 - БД, API-роутов и серверного рантайма нет
 
@@ -21,11 +22,11 @@
 - `app/` — точки входа Next.js: `layout.tsx` (локальный Nunito из `app/fonts/`, viewport, провайдеры), `providers.tsx` (`AppProviders`: GamePush → Intl → Navigation), `page.tsx`, `favicon.ico`
 - `pages/` (в корне) — папка-заглушка с одним `README.md`: снимает конфликт App Router с FSD-слоем `src/pages`; маршрутов и кода в ней нет
 - `src/app/` — инфраструктура: `providers/` (`IntlProvider`, `TelegramProvider` — не смонтирован), `styles/globals.css` (тема Tailwind + фолбэки `--tg-theme-*`), `types/telegram.d.ts`
-- `src/pages/` — композиция экранов: `game/` (`GameView`: канвас + HUD, мосты «стор → навигация» и «стор → GamePush»), `game-router/` (`GameRouterView`: карта экранов, Motion-переходы, `AnimatedBackground`, `useGameAudio`)
+- `src/pages/` — композиция экранов: `game/` (`GameView`: канвас + HUD, мосты «стор → навигация» и «стор → GamePush»), `game-router/` (`GameRouterView`: карта экранов, Motion-переходы, `AnimatedBackground`, `useGameAudio`, `audioService.init`)
 - `src/widgets/` — `main-menu` (`MainMenuWidget`, `SettingsPopup`), `game-canvas` (`ui/GameCanvasWidget`, `hooks/useGameEngine.ts`, `lib/`: `GameObject`, `Circle`, `Particle`, `CrackedHeart`, `EffectsLayer`, `FloatingMessage`), `game-hud` (`ScoreDisplay`, `LivesDisplay`, `TargetColorIndicator`), `game-over`, `leaderboard-screen`, `telegram-debug` (нигде не рендерится)
-- `src/features/` — `leaderboard` (топ и рейтинг игрока), `save-score`, `sound-control` (`audioService`, `useGameAudio`, `useGameSounds`)
-- `src/entities/` — `game-session` (`model/` — стор, `config/` — `constants`/`comboConfig`/`uiConfig`, `types/`, `ui/ComboHistogram` и `ui/ComboTower`), `player-score` (рекорд: GamePush + `localStorage`)
-- `src/shared/` — `gamepush` (SDK, `useGamePush`, `startGameplay`/`stopGameplay`), `i18n` (`config.ts`, `request.ts`, `messages.ts`, `locales/ru` и `locales/en`), `lib` (`cn`, `number`, `telegram/`, `telegram-mock.ts`), `navigation` (`GameNavigationProvider`, `useGameNavigation`, тип `GameScreen`), `ui` (`Button`, `Card`, `Toggle`, `Typography` → `Text`/`Title`, `AnimatedBackground`, `AnimatedStack`, `AnimatedText`)
+- `src/features/` — `leaderboard` (топ и рейтинг игрока), `save-score`, `sound-control` (`useGameAudio` — мост «настройки → сервис» с дебаунсом сохранения, `useGameSounds` — мьют из `gp.sounds` и громкость из полей игрока)
+- `src/entities/` — `game-session` (`model/` — стор, `config/` — `constants`/`comboConfig`/`uiConfig`/`audioConfig`, `types/`, `ui/ComboHistogram` и `ui/ComboTower`), `player-score` (рекорд: GamePush + `localStorage`)
+- `src/shared/` — `gamepush` (SDK, `useGamePush`, `startGameplay`/`stopGameplay`), `i18n` (`config.ts`, `request.ts`, `messages.ts`, `locales/ru` и `locales/en`), `lib` (`audio/` — `audioService` на Howler, `cn`, `number`, `telegram/`, `telegram-mock.ts`), `navigation` (`GameNavigationProvider`, `useGameNavigation`, тип `GameScreen`), `ui` (`Button`, `Card`, `Toggle`, `VolumeSlider`, `Typography` → `Text`/`Title`, `AnimatedBackground`, `AnimatedStack`, `AnimatedText`)
 - Каждый слайс закрыт `index.ts` (public API); импорт из чужого слайса — только через него; общий баррель `shared` — `src/shared/index.ts`
 - `public/` пуста (иконка — `app/favicon.ico`); `README.md` — описание для людей, сверено с кодом 2026-11-15; `promt.md` — ТЗ уже сделанной фичи комбо (в git не входит)
 
@@ -65,6 +66,10 @@
 - `TelegramProvider` есть, но не смонтирован в `AppProviders`: `useTelegram()` вне провайдера бросает исключение, тема и haptics из Telegram не применяются, `NEXT_PUBLIC_ENABLE_MOCK` из-за этого не активируется
 - next-intl: новый неймспейс вручную добавляется в `src/shared/i18n/messages.ts` (по обоим локалям), язык — в `config.ts`; `timeZone` обязателен, иначе `ENVIRONMENT_FALLBACK`; сервер всегда рендерит `ru`, локаль игрока подгружается на клиенте чанком
 - Ключи GamePush захардкожены (`PROJECT_ID`, `PUBLIC_TOKEN` в `src/shared/gamepush/GamePushProvider.tsx`); поля: `score` (панель GamePush) и `fallback_bestScore` (localStorage)
+- Громкость звука хранится в полях игрока `musicVolume`/`sfxVolume` (панель GamePush, число 0–100): у `gp.sounds` есть только вкл/выкл. Ключи — в `features/sound-control/model/constants.ts`, запись дебаунсится 500 мс в `useGameAudio`
+- `audioService.init(AUDIO_CONFIG)` вызывается в `GameRouterView` один раз; музыка стартует только по кнопке «Играть» (`MainMenuWidget`) — иначе браузер блокирует автовоспроизведение. `destroy()` в cleanup не вызывается: сервис живёт столько же, сколько страница
+- Howler импортируется статически: `howler@2.2.4` не обращается к `window` на этапе инициализации модуля, поэтому статический экспорт собирается. `Howl.load()` (и `window.location`) вызывается только на клиенте
+- Звук комбо: `rate` считается в сторе (`getComboRate`) по `AUDIO_CONFIG.COMBO_RATES` и передаётся в событии, а движок применяет его к конкретному `soundId` (`howl.rate(rate, soundId)`) — иначе следующий клик унаследовал бы чужой питч
 - Два lockfile: `pnpm-lock.yaml` актуален, `package-lock.json` не обновлялся с первого коммита — пакетный менеджер только pnpm
 
 ## Не трогать
@@ -80,5 +85,6 @@
 - Ветка `dev`; в origin ветка по умолчанию — `main`. Последний коммит — «implement setttings and sound controls» (2026-11-14)
 - До этого: интеграция SDK площадки (GamePush: язык, звук, gameplay-сигналы), `FloatingMessage`, мобильная вёрстка и безопасные зоны, статический шрифт, обновлённый HUD, отладка комбо, комбо-механика с вехами
 - Сделано вне кода игры: README и AGENTS.md сверены с кодом, добавлен `LICENSE` (MIT)
-- Не реализовано: подключение Telegram-интеграции, вехи `slowdown`/`all`, звуковые ассеты (`audioService` — заглушка), автотесты; метаданные страницы дефолтные (`title: 'Create Next App'`)
-- Рабочее дерево: изменены `AGENTS.md` и `README.md`; `LICENSE` не отслеживается git
+- Звуковой слой: Howler-сервис в shared, треугольный `VolumeSlider` в UI-ките, громкости в облаке GamePush, звуки через очередь `GameEvent` с питчем комбо
+- Не реализовано: подключение Telegram-интеграции, вехи `slowdown`/`all`, звуковые ассеты (файлы `public/audio/*.ogg`), автотесты; метаданные страницы дефолтные (`title: 'Create Next App'`)
+- Рабочее дерево: незакоммиченные изменения звукового слоя (`AGENTS.md`, `README.md`, `package.json`, `src/`)

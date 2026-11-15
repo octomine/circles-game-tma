@@ -4,9 +4,11 @@ import { type ComponentType, useEffect } from 'react';
 import { AnimatePresence, type Variants } from 'motion/react';
 import * as motion from 'motion/react-client';
 
+import { AUDIO_CONFIG } from '@/entities/game-session';
 import { useGameAudio } from '@/features/sound-control';
 import { GameView } from '@/pages/game';
 import { useGamePush } from '@/shared/gamepush';
+import { audioService } from '@/shared/lib/audio';
 import { useGameNavigation, type GameScreen } from '@/shared/navigation';
 import { AnimatedBackground } from '@/shared/ui';
 import { GameOverWidget } from '@/widgets/game-over';
@@ -79,6 +81,17 @@ export const GameRouterView = () => {
   useGameAudio();
 
   const Screen = SCREEN_COMPONENTS[screen];
+
+  useEffect(() => {
+    // Аудио-сервис создаём один раз на жизнь страницы: Howl-объекты дорогие, а
+    // экраны сменяются внутри этого компонента. Сервис сам защищён от повторного
+    // init (StrictMode, HMR), поэтому destroy в очистке не нужен — он убил бы
+    // звук при повторном маунте роутера, хотя страница осталась той же.
+    //
+    // Музыка здесь НЕ запускается: автовоспроизведение заблокировано, пока игрок
+    // не сделал жест. playMusic() зовёт кнопка «Играть».
+    audioService.init(AUDIO_CONFIG);
+  }, []);
 
   useEffect(() => {
     // GameStart — обязательный пункт чек-листа GamePush. Это сигнал «игра

@@ -8,6 +8,7 @@ import { useTranslations } from 'next-intl';
 
 import { useGameSessionStore } from '@/entities/game-session';
 import { BestScoreDisplay } from '@/entities/player-score';
+import { audioService } from '@/shared/lib/audio';
 import { useGameNavigation } from '@/shared/navigation';
 import { AnimatedStack, AnimatedText, Button, Card, Text, Title } from '@/shared/ui';
 
@@ -34,6 +35,10 @@ export const MainMenuWidget = () => {
   }, []);
 
   const handleStartGame = () => {
+    // Музыка стартует именно здесь: это первый жест игрока, после которого браузер
+    // разрешает автовоспроизведение. Раньше (в init) трек был бы заблокирован.
+    audioService.playMusic();
+
     // startGame() переводит сессию в 'playing': без него игровой цикл и HUD не запустятся.
     startGame();
     setScreen('game');

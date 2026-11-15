@@ -11,3 +11,5 @@ export { Text, Title } from './Typography';
 export type { TextProps, TitleLevel, TitleProps } from './Typography';
 export { Toggle } from './Toggle';
 export type { ToggleProps } from './Toggle';
+export { VolumeSlider } from './VolumeSlider';
+export type { VolumeSliderProps } from './VolumeSlider';

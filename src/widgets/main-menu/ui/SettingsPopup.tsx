@@ -6,9 +6,8 @@ import { AnimatePresence } from 'motion/react';
 import * as motion from 'motion/react-client';
 import { useTranslations } from 'next-intl';
 
-import { useGameSounds } from '@/features/sound-control';
-import { cn } from '@/shared/lib/cn';
-import { Button, Card, Text, Title, Toggle } from '@/shared/ui';
+import { useGameAudio } from '@/features/sound-control';
+import { Button, Card, Text, Title, VolumeSlider } from '@/shared/ui';
 
 export interface SettingsPopupProps {
   isOpen: boolean;
@@ -18,18 +17,24 @@ export interface SettingsPopupProps {
 /**
  * Модальное окно настроек звука.
  *
- * Состояние переключателей приходит из `useGameSounds`, то есть из SDK: попап
- * ничего не хранит сам и не помнит выбор между открытиями — это делает GamePush.
+ * Мьют приходит из `useGameSounds`, то есть из SDK: попап ничего не хранит сам и
+ * не помнит выбор между открытиями — это делает GamePush. Громкость — поля игрока
+ * в облаке; запись дебаунсится внутри `useGameAudio`, поэтому ползунок можно
+ * свободно тянуть, а в сеть уйдёт только итоговое значение.
  */
 export const SettingsPopup = ({ isOpen, onClose }: SettingsPopupProps) => {
   const tSettings = useTranslations('settings');
 
-  const { isMusicMuted, isSfxMuted, toggleMusic, toggleSfx } = useGameSounds();
-
-  // Включённое состояние — это отсутствие мьюта, поэтому инвертируем ровно здесь,
-  // а не в разметке: так положение переключателя и цвет иконки читаются из одного флага.
-  const isMusicEnabled = !isMusicMuted;
-  const isSfxEnabled = !isSfxMuted;
+  const {
+    isMusicMuted,
+    isSfxMuted,
+    musicVolume,
+    sfxVolume,
+    toggleMusic,
+    toggleSfx,
+    updateMusicVolume,
+    updateSfxVolume,
+  } = useGameAudio();
 
   useEffect(() => {
     if (!isOpen) return;
@@ -81,37 +86,39 @@ export const SettingsPopup = ({ isOpen, onClose }: SettingsPopupProps) => {
                 {tSettings('title')}
               </Title>
 
-              <div className="flex flex-col gap-4">
-                <div className="flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-3">
-                    <MusicalNoteIcon
-                      className={cn(
-                        'h-6 w-6 transition-colors',
-                        isMusicEnabled ? 'text-primary' : 'text-text-muted'
-                      )}
-                    />
+              <div className="flex flex-col gap-5">
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center justify-between gap-3">
                     <Text className="text-text">{tSettings('music')}</Text>
+                    {/* Процент дублирует положение ползунка словами: у треугольника
+                        без бегунка точное значение на глаз не прочитать. */}
+                    <Text className="text-text-muted text-sm tabular-nums">{musicVolume}%</Text>
                   </div>
 
-                  <Toggle
-                    checked={isMusicEnabled}
-                    onToggle={toggleMusic}
+                  <VolumeSlider
+                    value={musicVolume}
+                    onChange={updateMusicVolume}
+                    isMuted={isMusicMuted}
+                    onToggleMute={toggleMusic}
+                    icon={<MusicalNoteIcon className="h-6 w-6" />}
                     label={tSettings('music')}
                   />
                 </div>
 
-                <div className="flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-3">
-                    <SpeakerWaveIcon
-                      className={cn(
-                        'h-6 w-6 transition-colors',
-                        isSfxEnabled ? 'text-primary' : 'text-text-muted'
-                      )}
-                    />
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center justify-between gap-3">
                     <Text className="text-text">{tSettings('sfx')}</Text>
+                    <Text className="text-text-muted text-sm tabular-nums">{sfxVolume}%</Text>
                   </div>
 
-                  <Toggle checked={isSfxEnabled} onToggle={toggleSfx} label={tSettings('sfx')} />
+                  <VolumeSlider
+                    value={sfxVolume}
+                    onChange={updateSfxVolume}
+                    isMuted={isSfxMuted}
+                    onToggleMute={toggleSfx}
+                    icon={<SpeakerWaveIcon className="h-6 w-6" />}
+                    label={tSettings('sfx')}
+                  />
                 </div>
               </div>
 
