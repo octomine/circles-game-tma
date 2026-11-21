@@ -1,4 +1,6 @@
 // 'paused' — игра идёт, но игровое время стоит: вкладка скрыта или окно потеряло фокус.
+// 'gameover' — раунд проигран. Экран навигации от этого НЕ меняется: состояние лишь
+// показывает оверлей результатов поверх застывшего Pixi-канваса.
 export type GameStatus = 'menu' | 'playing' | 'paused' | 'gameover';
 
 // Строгий тип для HEX-цветов (например, '#FF5733')
@@ -78,7 +80,8 @@ export interface GameSessionData {
 
 // Действия, которые могут изменять состояние
 export interface GameSessionActions {
-  setScreen: (status: GameStatus) => void;
+  /** Перевести сессию в 'gameover'. Зовётся движком после заморозки за промах. */
+  gameOver: () => void;
   startGame: () => void;
   addScore: (points: number) => void;
   loseLife: () => void;

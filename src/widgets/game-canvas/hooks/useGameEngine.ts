@@ -340,7 +340,9 @@ export function useGameEngine({ appRef, isAppReady }: UseGameEngineProps) {
 
     const ticker = (ticker: PIXI.Ticker) => {
       const currentStatus = useGameSessionStore.getState().status;
-      // На паузе цикл стоит целиком: игровое время не копится, круги не стареют.
+      // На паузе и после проигрыша цикл стоит целиком: игровое время не копится,
+      // круги не стареют. Канвас при этом остаётся смонтированным — в 'gameover'
+      // он служит застывшим фоном под оверлеем результатов.
       if (currentStatus !== 'playing') return;
 
       const dt = ticker.deltaMS;
@@ -363,10 +365,12 @@ export function useGameEngine({ appRef, isAppReady }: UseGameEngineProps) {
           isFreezingRef.current = false;
           freezeTimeLeftRef.current = 0;
 
-          // Проверяем, не закончились ли жизни
+          // Проверяем, не закончились ли жизни. Переводим именно внутреннее
+          // состояние сессии: навигацию движок больше не трогает, экран остаётся
+          // 'game', а оверлей результатов — забота GameView.
           const currentLives = useGameSessionStore.getState().lives;
           if (currentLives <= 0) {
-            useGameSessionStore.getState().setScreen('gameover');
+            useGameSessionStore.getState().gameOver();
           }
         }
 

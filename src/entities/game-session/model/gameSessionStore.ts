@@ -68,7 +68,10 @@ const countPendingMessages = (events: GameEvent[]): number =>
 export const useGameSessionStore = create<GameSessionState>((set, get) => ({
   ...getDefaultGameData(),
 
-  setScreen: (status) => set({ status }),
+  gameOver: () =>
+    // Переход только из 'playing': повторный вызов из тикера и смена статуса после
+    // паузы не должны перезаписывать уже выставленный результат.
+    set((state) => (state.status === 'playing' ? { status: 'gameover' } : state)),
 
   startGame: () => {
     const defaults = getDefaultGameData();
@@ -318,6 +321,13 @@ export const useGameSessionStore = create<GameSessionState>((set, get) => ({
     // всё одним обновлением, чтобы подписчики не увидели промежуточное состояние.
     // Отдельный loseLife() убрал бы обновление стора на два, и часть UI успела
     // бы отрисоваться с новыми жизнями, но со старым комбо.
+    //
+    // Статус здесь НЕ переводится в 'gameover' даже при lives === 0, и это
+    // осознанный инвариант: тикер останавливается сразу, как только статус
+    // перестал быть 'playing', поэтому событие WRONG_CLICK осталось бы в очереди
+    // необработанным — смертельный промах прошёл бы без разбитого сердца, звука
+    // и заморозки. Переход делает движок (gameOver()) после LOSE_LIFE_FREEZE_MS,
+    // когда наказание уже отыграно.
     set({
       combo: 0,
       lastInterval: null,

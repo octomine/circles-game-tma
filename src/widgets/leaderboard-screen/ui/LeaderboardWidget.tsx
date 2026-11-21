@@ -5,6 +5,7 @@ import * as motion from 'motion/react-client';
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 
+import { useGameSessionStore } from '@/entities/game-session';
 import { LeaderboardList, useFetchLeaderboard, usePlayerRating } from '@/features/leaderboard';
 import { useGamePush } from '@/shared/gamepush';
 import { useGameNavigation } from '@/shared/navigation';
@@ -14,9 +15,11 @@ export const LeaderboardWidget = () => {
   const t = useTranslations('leaderboard');
   const tCommon = useTranslations('common');
 
-  const { goBack } = useGameNavigation();
+  const { setScreen } = useGameNavigation();
 
   const { isReady } = useGamePush();
+
+  const startGame = useGameSessionStore((state) => state.startGame);
 
   const { players, me, loading, error, fetchLeaderboard } = useFetchLeaderboard({ limit: 20 });
   const { rating, fetchPlayerRating } = usePlayerRating();
@@ -41,6 +44,20 @@ export const LeaderboardWidget = () => {
     void fetchPlayerRating();
   }, [fetchLeaderboard, fetchPlayerRating]);
 
+  // «Играть снова» вместо возврата назад: лидерборд открывается и из меню, и из
+  // оверлея результатов, а goBack из второго случая вернул бы игрока к уже
+  // проигранной партии — то есть к тому же оверлею. Стартуем явно.
+  // Порядок важен: к монтированию GameView статус уже 'playing', поэтому его
+  // mount-эффект не запустит второй раунд поверх этого.
+  const handlePlayAgain = useCallback(() => {
+    startGame();
+    setScreen('game');
+  }, [startGame, setScreen]);
+
+  const handleGoToMenu = useCallback(() => {
+    setScreen('menu');
+  }, [setScreen]);
+
   // Мой игрок приходит отдельным полем и уже исключён из списка,
   // поэтому его строку добавляем сами — иначе подсветить себя в списке было бы нечем.
   const rows = useMemo(() => {
@@ -54,7 +71,7 @@ export const LeaderboardWidget = () => {
   // Пока SDK грузится, список ещё пуст: без этого на кадр мелькал бы экран «Пока никого нет».
   const isListLoading = loading || !isReady;
 
-  // Фон (AnimatedBackground) живёт в GameRouterView: сам экран прозрачный,
+  // Фон (AnimatedBackground) живёт в AppRouter: сам экран прозрачный,
   // иначе он перекрыл бы PixiJS-слой.
   return (
     <div className="relative flex min-h-dvh flex-col p-6">
@@ -98,9 +115,15 @@ export const LeaderboardWidget = () => {
           onRetry={fetchLeaderboard}
         />
 
-        <Button variant="secondary" className="mt-auto w-full" onClick={goBack}>
-          {tCommon('buttons.back')}
-        </Button>
+        <div className="mt-auto flex w-full flex-col gap-4 pt-6">
+          <Button variant="primary" size="lg" className="w-full" onClick={handlePlayAgain}>
+            {tCommon('buttons.playAgain')}
+          </Button>
+
+          <Button variant="secondary" size="md" className="w-full" onClick={handleGoToMenu}>
+            {tCommon('buttons.menu')}
+          </Button>
+        </div>
       </div>
     </div>
   );

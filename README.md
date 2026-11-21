@@ -13,7 +13,7 @@
 Как устроено:
 
 - **Next.js 16 (App Router) в режиме статического экспорта** — в `next.config.ts` задано `output: 'export'`, `trailingSlash: true` и `assetPrefix: './'` для production-сборки. Приложение собирается в набор статических файлов, серверный рантайм не используется.
-- **Одна страница.** `app/page.tsx` рендерит `GameRouterView`; экраны (`menu` | `game` | `gameover` | `leaderboard`) переключаются React-состоянием, URL не меняется.
+- **Одна страница.** `app/page.tsx` рендерит `AppRouter`; экраны (`menu` | `game` | `leaderboard`) переключаются React-состоянием, URL не меняется. Проигрыш — не экран, а оверлей результатов поверх застывшего игрового поля.
 - **Игровое поле — PixiJS 8 (WebGL)**, состояние — Zustand, анимации интерфейса — Motion, стили — Tailwind CSS v4, переводы — next-intl (`ru` и `en`, язык берётся из GamePush).
 - **Рекорд и лидерборд — через GamePush SDK** (облако GamePush) с локальным fallback в `localStorage`; там же — настройки звука и геймплей-сессии площадки.
 
@@ -194,7 +194,7 @@ export const COMBO_CONFIG = {
 - `fallback_bestScore` — ключ `localStorage`, куда пишется рекорд, когда облако недоступно (см. [`src/entities/player-score/model/constants.ts`](src/entities/player-score/model/constants.ts)).
 - `sounds` — мьют музыки и эффектов. SDK — единственный источник истины: `useGameSounds` подписывается на `mute`/`unmute` и `:music`/`:sfx`, а переключение идёт методами SDK, не локальным стейтом.
 - `language` — язык игрока (`ISO 639-1`, может прийти с регионом); нормализуется в `resolveLocale`, неподдерживаемое сводится к `en`.
-- Сигналы площадки: `gameStart()` — один раз за жизнь страницы после первого отрисованного кадра (`GameRouterView`); `gameplayStart()`/`gameplayStop()` — границы раунда, идемпотентны через модульный флаг (`src/shared/gamepush/gameplay.ts`).
+- Сигналы площадки: `gameStart()` — один раз за жизнь страницы после первого отрисованного кадра (`AppRouter`); `gameplayStart()`/`gameplayStop()` — границы раунда, идемпотентны через модульный флаг (`src/shared/gamepush/gameplay.ts`). `gameplayStop()` шлёт оверлей результатов при монтировании, `gameplayStart()` — мост в `GameView` при возврате из `'gameover'`.
 
 ### Тема и переводы
 
@@ -239,18 +239,18 @@ circles-game-tma/
 ├── app/                                       # точки входа Next.js
 │   ├── layout.tsx                             # html/body, локальный Nunito, viewport, провайдеры
 │   ├── providers.tsx                          # AppProviders: GamePush → Intl → Navigation
-│   ├── page.tsx                               # рендерит GameRouterView
+│   ├── page.tsx                               # рендерит AppRouter
 │   ├── fonts/                                 # Nunito woff2 (cyrillic + latin, 400/700/900)
 │   └── favicon.ico
 ├── pages/README.md                            # заглушка: снимает конфликт App Router с FSD
 └── src/
     ├── app/                                   # инфраструктура приложения
+    │   ├── router/AppRouter.tsx               # карта экранов, Motion-переходы, фон, звук
     │   ├── providers/                         # IntlProvider, TelegramProvider*
     │   ├── styles/globals.css                 # тема Tailwind v4, фолбэки --tg-theme-*
     │   └── types/telegram.d.ts
     ├── pages/                                 # композиция экранов
-    │   ├── game/ui/GameView.tsx               # канвас + HUD, мосты «стор → экран/GamePush»
-    │   └── game-router/ui/GameRouterView.tsx  # карта экранов, Motion-переходы, фон, звук
+    │   └── game/ui/GameView.tsx               # канвас + HUD + оверлей game over, мост «стор → GamePush»
     ├── widgets/
     │   ├── main-menu/                         # MainMenuWidget, SettingsPopup
     │   ├── game-canvas/                       # PixiJS-поле
@@ -260,7 +260,7 @@ circles-game-tma/
     │   │   └── ui/GameCanvasWidget.tsx
     │   ├── game-hud/                          # ScoreDisplay, LivesDisplay (жизни + щит),
     │   │                                      # TargetColorIndicator, ComboTower из entities
-    │   ├── game-over/                         # экран результатов
+    │   ├── game-over/                         # оверлей результатов поверх канваса
     │   ├── leaderboard-screen/                # экран лидерборда
     │   └── telegram-debug/                    # debug-виджет (нигде не рендерится)
     ├── features/

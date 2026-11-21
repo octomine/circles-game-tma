@@ -48,7 +48,7 @@ export const MainMenuWidget = () => {
     setScreen('leaderboard');
   };
 
-  // Фон (AnimatedBackground) живёт в GameRouterView: сам экран прозрачный,
+  // Фон (AnimatedBackground) живёт в AppRouter: сам экран прозрачный,
   // иначе он перекрыл бы PixiJS-слой.
   return (
     <div className="relative min-h-dvh w-full overflow-hidden">
