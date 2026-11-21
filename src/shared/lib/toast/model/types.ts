@@ -1,0 +1,34 @@
+import { type ComponentType } from 'react';
+
+/**
+ * Описание тоста.
+ *
+ * `type` — расширяемый дискриминатор, а не union конкретных значений: стор и
+ * ToastManager не должны знать, какие тосты существуют. Список типов задаёт
+ * реестр `TOAST_COMPONENTS` в виджете, поэтому новый тост добавляется там,
+ * без правок стора.
+ *
+ * `payload` типизируется по месту: обобщение `T` позволяет компоненту тоста
+ * объявить свои данные (`ToastData<{ score: number }>`) и не тащить в стор
+ * обезличенный `unknown` через каст в каждой точке чтения.
+ */
+export interface ToastData<T = unknown> {
+  id: string;
+  /** Тип тоста: ключ реестра компонентов, например 'gameover'. */
+  type: string;
+  payload: T;
+  /** Если задано, тост исчезнет автоматически через указанное число мс. */
+  duration?: number;
+}
+
+/**
+ * Пропсы компонента тоста. `onClose` приходит из менеджера, а не из стора:
+ * компонент не должен знать про removeToast и остаётся переиспользуемым.
+ */
+export interface ToastComponentProps {
+  toast: ToastData;
+  onClose: () => void;
+}
+
+/** Тип записи в реестре тостов. */
+export type ToastComponent = ComponentType<ToastComponentProps>;

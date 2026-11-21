@@ -1,24 +1,26 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { AnimatePresence } from 'motion/react';
 
 import { useGameSessionStore, type GameStatus } from '@/entities/game-session';
 import { startGameplay, stopGameplay, useGamePush } from '@/shared/gamepush';
+import { useToastStore } from '@/shared/lib/toast';
 import { GameCanvasWidget } from '@/widgets/game-canvas';
 import { GameHUDWidget } from '@/widgets/game-hud';
-import { GameOverWidget } from '@/widgets/game-over';
+import { ToastManager } from '@/widgets/toast-manager';
 
 export const GameView = () => {
   const { gp } = useGamePush();
 
   const status = useGameSessionStore((state) => state.status);
+  const score = useGameSessionStore((state) => state.score);
   const startGame = useGameSessionStore((state) => state.startGame);
+
+  const addToast = useToastStore((state) => state.addToast);
+  const clearToasts = useToastStore((state) => state.clearToasts);
 
   // Предыдущий статус: по нему отличаем вход в игру от возврата из паузы.
   const prevStatusRef = useRef<GameStatus>(status);
-
-  const isGameOver = status === 'gameover';
 
   // Экран игры мог открыться поверх незавершённой сессии: из лидерборда (там
   // кнопка «Играть снова» уже зовёт startGame, но страховка бесплатна) и после
@@ -29,6 +31,37 @@ export const GameView = () => {
       startGame();
     }
   }, [startGame]);
+
+  // Проигрыш → тост с результатами.
+  //
+  // Проверка на уже существующий тост нужна потому, что эффект зависит от score:
+  // любой ре-рендер с изменившимся счётом при том же статусе добавил бы второй
+  // экземпляр окна результатов. Она же глушит двойной прогон в StrictMode.
+  useEffect(() => {
+    if (status !== 'gameover') return;
+
+    const hasGameOverToast = useToastStore
+      .getState()
+      .toasts.some((toast) => toast.type === 'gameover');
+
+    if (hasGameOverToast) return;
+
+    addToast({ type: 'gameover', payload: { score } });
+  }, [status, score, addToast]);
+
+  // Старт новой партии сметает тосты прошлой: экран результатов не должен
+  // пережить «Играть снова», даже если его закрытие ещё доигрывает анимацию.
+  useEffect(() => {
+    if (status === 'playing') {
+      clearToasts();
+    }
+  }, [status, clearToasts]);
+
+  // Страховка на выходе с экрана: стор тостов живёт дольше GameView, и тост,
+  // закрытый не кнопкой (новый путь навигации, HMR), иначе всплыл бы при
+  // следующем возврате в игру. Кнопки закрывают тост сами — там это нужно
+  // раньше, чтобы exit-анимация началась от нажатия.
+  useEffect(() => clearToasts, [clearToasts]);
 
   // Мост «стор → GamePush»: границы геймплей-сессии раунда.
   useEffect(() => {
@@ -41,7 +74,7 @@ export const GameView = () => {
       stopGameplay(gp);
     }
 
-    // Game over закрывает сессию сам оверлей (GameOverWidget) — там же, где
+    // Game over закрывает сессию сам тост (GameOverToast) — там же, где
     // сохраняется рекорд, чтобы порядок «стоп → сохранение» жил в одном месте.
     //
     // А вот возврат ИЗ game over обязан открыть сессию заново: иначе раунд
@@ -60,16 +93,13 @@ export const GameView = () => {
       {/* HUD во время игры */}
       {status === 'playing' && <GameHUDWidget />}
 
-      {/* Оверлей результатов живёт ВНУТРИ GameView, а не отдельным экраном роутера.
-          Причина в PixiJS: канвас — сиблинг оверлея, а не его родитель, поэтому
-          появление и исчезновение модалки его не перемонтирует. Навигация всё это
-          время остаётся на 'game', GameCanvasWidget не размонтируется, и его
-          cleanup не уничтожает PIXI.Application — за оверлеем остаётся застывший
-          кадр партии (тикер сам выходит по status !== 'playing').
-          AnimatePresence держим здесь, а не в виджете: exit-анимация должна
-          отыграть тогда, когда условие уже стало false — то есть когда GameView
-          перестал рендерить оверлей, но AnimatePresence ещё дожидается анимации. */}
-      <AnimatePresence>{isGameOver && <GameOverWidget />}</AnimatePresence>
+      {/* Тосты живут ВНУТРИ GameView, а не отдельным экраном роутера: канвас —
+          их сиблинг, а не родитель, поэтому появление и исчезновение тоста его
+          не перемонтирует. Навигация всё это время остаётся на 'game',
+          GameCanvasWidget не размонтируется, и его cleanup не уничтожает
+          PIXI.Application — за окном результатов остаётся застывший кадр партии
+          (тикер сам выходит по status !== 'playing'). */}
+      <ToastManager />
     </div>
   );
 };
