@@ -93,7 +93,7 @@ export const useGameAudio = (): UseGameAudioResult => {
 
         // Облако GamePush указываем явно: на площадке без своего облака
         // хранилище по умолчанию (preferred) могло бы оказаться неподдерживаемым.
-        void gp.player.sync({ storage: 'cloud' }).catch((error: unknown) => {
+        void gp.player.sync().catch((error: unknown) => {
           console.warn('[sound-control] Не удалось сохранить громкость в облако:', error);
         });
       } catch (error) {

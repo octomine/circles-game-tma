@@ -190,7 +190,7 @@ export const COMBO_CONFIG = {
 
 `projectId` и `publicToken` захардкожены в [`src/shared/gamepush/GamePushProvider.tsx`](src/shared/gamepush/GamePushProvider.tsx) (`PROJECT_ID = 31261`). SDK грузится с зеркал CDN по официальному failover-сценарию: параллельные HEAD-пробы (таймаут 5 с), затем скрипт с первого ответившего зеркала, при ошибке — следующее. Если токен пустой или равен `REPLACE_ME`, SDK не загружается вообще; если инициализация не уложилась в 8 с, провайдер выставляет `isInitFailed`, и игра продолжает работать без SDK.
 
-- `score` — числовое поле игрока в панели GamePush: используется и для рекорда, и для лидерборда. Запись — `player.set(...)` + `player.sync({ storage: 'cloud' })`, только если новый результат больше сохранённого.
+- `score` — числовое поле игрока в панели GamePush: используется и для рекорда, и для лидерборда. Запись — `player.set(...)` + `player.sync()`, только если новый результат больше сохранённого.
 - `fallback_bestScore` — ключ `localStorage`, куда пишется рекорд, когда облако недоступно (см. [`src/entities/player-score/model/constants.ts`](src/entities/player-score/model/constants.ts)).
 - `sounds` — мьют музыки и эффектов. SDK — единственный источник истины: `useGameSounds` подписывается на `mute`/`unmute` и `:music`/`:sfx`, а переключение идёт методами SDK, не локальным стейтом.
 - `language` — язык игрока (`ISO 639-1`, может прийти с регионом); нормализуется в `resolveLocale`, неподдерживаемое сводится к `en`.
