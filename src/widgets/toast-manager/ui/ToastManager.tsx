@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { AnimatePresence } from 'motion/react';
 import * as motion from 'motion/react-client';
 
+import { audioService } from '@/shared/lib/audio';
 import { useToastStore, type ToastComponent, type ToastData } from '@/shared/lib/toast';
 
 import { GameOverToast } from './toasts';
@@ -50,7 +51,20 @@ interface ToastItemProps {
 const ToastItem = ({ toast }: ToastItemProps) => {
   const removeToast = useToastStore((state) => state.removeToast);
 
-  const { id, duration } = toast;
+  // Уже проигранный звук этого тоста (его id). Ref, а не локальная переменная:
+  // ref переживает повторный прогон эффекта в StrictMode (setup → cleanup →
+  // setup на том же инстансе компонента), поэтому playSfx не вызовется второй
+  // раз. Храним именно id, а не boolean: если у того же элемента когда-нибудь
+  // сменится sfx, новый звук всё равно прозвучит.
+  const playedSfxRef = useRef<string | null>(null);
+
+  const { id, duration, sfx } = toast;
+
+  // Компонент ищем до эффектов, а не после: его наличие нужно и звуку, и рендеру,
+  // а хук нельзя вызывать ниже раннего return — порядок хуков обязан быть
+  // стабильным на всех рендерах. Значение приходит из модульного реестра, так что
+  // на ссылку в зависимостях эффекта это не влияет.
+  const Component = TOAST_COMPONENTS[toast.type];
 
   useEffect(() => {
     // Тост без duration живёт до явного закрытия: так ведёт себя экран
@@ -67,7 +81,33 @@ const ToastItem = ({ toast }: ToastItemProps) => {
     return () => clearTimeout(timer);
   }, [duration, id, removeToast]);
 
-  const Component = TOAST_COMPONENTS[toast.type];
+  // Звук проигрывается здесь, в менеджере, а не в месте создания тоста:
+  //
+  // 1. Тост — это событие, которое игрок УВИДЕЛ, и только менеджер знает, что
+  //    тост действительно отрисовался. Вызов в точке создания (GameView и т.п.)
+  //    прозвучал бы и тогда, когда карточки на экране нет.
+  // 2. Так звук не дублируется в каждой точке вызова: новый источник описывает
+  //    его полем `sfx` в данных тоста и не знает ни про Howler, ни про мьют.
+  // 3. Звук получает тот же жизненный цикл, что и карточка, а правила
+  //    воспроизведения (мьют, отсутствующий ассет) остаются в одном месте —
+  //    в audioService.playSfx.
+  useEffect(() => {
+    if (!sfx) return;
+
+    // Тост незарегистрированного типа не рендерится (см. warn ниже) — не звучит
+    // и его звук: иначе опечатка в `type` давала бы слышимый эффект без карточки.
+    if (!Component) return;
+
+    // Единственный барьер против двойного воспроизведения в StrictMode: второй
+    // прогон эффекта выходит здесь, не доходя до playSfx. Обычный ре-рендер тоже
+    // ничего не добавит — ref живёт столько же, сколько сам ToastItem, а он
+    // keyed по toast.id.
+    if (playedSfxRef.current === sfx) return;
+
+    playedSfxRef.current = sfx;
+
+    audioService.playSfx(sfx);
+  }, [sfx, Component]);
 
   if (!Component) {
     // Молчаливый пропуск спрятал бы опечатку в type: тост «не появляется» без

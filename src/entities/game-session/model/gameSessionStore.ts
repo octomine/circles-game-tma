@@ -310,7 +310,7 @@ export const useGameSessionStore = create<GameSessionState>((set, get) => ({
             delay: 0,
             // Щит — не наказание: мягкий звук интерфейса вместо тревожного
             // промаха, чтобы игрок услышал, что защита сработала.
-            sfx: AUDIO_CONFIG.SFX.UI.id,
+            sfx: AUDIO_CONFIG.SFX.SHIELD.id,
           },
         ],
       });

@@ -17,6 +17,7 @@ export const AUDIO_CONFIG = {
     CLICK: { id: 'sfx_click', src: '/audio/click.ogg' },
     WRONG: { id: 'sfx_wrong', src: '/audio/wrong.ogg' },
     MILESTONE: { id: 'sfx_milestone', src: '/audio/milestone.ogg' },
+    SHIELD: { id: 'sfx_shield', src: '/audio/shield.ogg' },
     GAMEOVER: { id: 'sfx_gameover', src: '/audio/gameover.ogg' },
     UI: { id: 'sfx_ui', src: '/audio/ui.ogg' },
   },

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 
-import { useGameSessionStore, type GameStatus } from '@/entities/game-session';
+import { AUDIO_CONFIG, useGameSessionStore, type GameStatus } from '@/entities/game-session';
 import { startGameplay, stopGameplay, useGamePush } from '@/shared/gamepush';
 import { useToastStore } from '@/shared/lib/toast';
 import { GameCanvasWidget } from '@/widgets/game-canvas';
@@ -37,6 +37,9 @@ export const GameView = () => {
   // Проверка на уже существующий тост нужна потому, что эффект зависит от score:
   // любой ре-рендер с изменившимся счётом при том же статусе добавил бы второй
   // экземпляр окна результатов. Она же глушит двойной прогон в StrictMode.
+  //
+  // Звук не проигрывается здесь: тост лишь называет его полем `sfx`, а запускает
+  // ToastManager — в момент фактического появления карточки и ровно один раз.
   useEffect(() => {
     if (status !== 'gameover') return;
 
@@ -46,7 +49,7 @@ export const GameView = () => {
 
     if (hasGameOverToast) return;
 
-    addToast({ type: 'gameover', payload: { score } });
+    addToast({ type: 'gameover', payload: { score }, sfx: AUDIO_CONFIG.SFX.GAMEOVER.id });
   }, [status, score, addToast]);
 
   // Старт новой партии сметает тосты прошлой: экран результатов не должен

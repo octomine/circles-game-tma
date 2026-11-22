@@ -13,7 +13,8 @@
 - GamePush SDK — внешний скрипт с зеркал CDN (HEAD-пробы + failover), обёртка в `src/shared/gamepush`: `player`, `leaderboard`, `sounds`, `language`, `gameStart`/`gameplayStart`/`gameplayStop`
 - `@heroicons/react` 2.2.0 — иконки UI и SVG-строка щита для Pixi-сцены (`EffectsLayer`)
 - Howler.js 2.2.4 (+`@types/howler`) — звук: `audioService` в `src/shared/lib/audio`, конфиг ассетов — `AUDIO_CONFIG` в `entities/game-session/config`
-- Звуковых ассетов нет: файлы `public/audio/*.ogg` не добавлены, сервис логирует `console.warn` на ошибке загрузки и работает молча
+- Звуковые ассеты лежат в `public/audio/*.ogg` (музыка + 6 эффектов); файла нет — `console.warn` на ошибке загрузки и молчаливая работа
+- Звук тоста: `ToastData.sfx` называет id, `ToastManager` проигрывает его через `audioService.playSfx` один раз (защита `useRef` от StrictMode); Game Over подключает `AUDIO_CONFIG.SFX.GAMEOVER.id` в `GameView`
 - ESLint 9.39.4 (flat config) + Prettier 3.8.4 + Husky 9/lint-staged 17; `@vercel/analytics` и `@vercel/speed-insights` в зависимостях, но в коде не используются
 - БД, API-роутов и серверного рантайма нет
 
@@ -28,7 +29,7 @@
 - `src/entities/` — `game-session` (`model/` — стор, `config/` — `constants`/`comboConfig`/`uiConfig`/`audioConfig`, `types/`, `ui/ComboHistogram` и `ui/ComboTower`), `player-score` (рекорд: GamePush + `localStorage`)
 - `src/shared/` — `gamepush` (SDK, `useGamePush`, `startGameplay`/`stopGameplay`), `i18n` (`config.ts`, `request.ts`, `messages.ts`, `locales/ru` и `locales/en`), `lib` (`audio/` — `audioService` на Howler, `toast/` — стор тостов и типы `ToastData`, `cn`, `number`, `telegram/`, `telegram-mock.ts`), `navigation` (`GameNavigationProvider`, `useGameNavigation`, тип `GameScreen`), `ui` (`Button`, `Card`, `Toggle`, `VolumeSlider`, `Typography` → `Text`/`Title`, `AnimatedBackground`, `AnimatedStack`, `AnimatedText`)
 - Каждый слайс закрыт `index.ts` (public API); импорт из чужого слайса — только через него; общий баррель `shared` — `src/shared/index.ts`
-- `public/` пуста (иконка — `app/favicon.ico`); `README.md` — описание для людей, сверено с кодом 2026-11-15; `promt.md` — ТЗ уже сделанной фичи комбо (в git не входит)
+- `public/` — только `audio/*.ogg` (музыка и эффекты); иконка — `app/favicon.ico`; `README.md` — описание для людей, сверено с кодом 2026-11-15; `promt.md` — ТЗ уже сделанной фичи комбо (в git не входит)
 
 ## Команды
 
@@ -86,5 +87,5 @@
 - До этого: интеграция SDK площадки (GamePush: язык, звук, gameplay-сигналы), `FloatingMessage`, мобильная вёрстка и безопасные зоны, статический шрифт, обновлённый HUD, отладка комбо, комбо-механика с вехами
 - Сделано вне кода игры: README и AGENTS.md сверены с кодом, добавлен `LICENSE` (MIT)
 - Звуковой слой: Howler-сервис в shared, треугольный `VolumeSlider` в UI-ките, громкости в облаке GamePush, звуки через очередь `GameEvent` с питчем комбо
-- Не реализовано: подключение Telegram-интеграции, вехи `slowdown`/`all`, звуковые ассеты (файлы `public/audio/*.ogg`), автотесты; метаданные страницы дефолтные (`title: 'Create Next App'`)
+- Не реализовано: подключение Telegram-интеграции, вехи `slowdown`/`all`, автотесты; метаданные страницы дефолтные (`title: 'Create Next App'`)
 - Рабочее дерево: незакоммиченные изменения звукового слоя (`AGENTS.md`, `README.md`, `package.json`, `src/`)
