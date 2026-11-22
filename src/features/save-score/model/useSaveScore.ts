@@ -36,7 +36,7 @@ export const useSaveScore = (): UseSaveScoreResult => {
 
         // На «Пикабу Игры» облака платформы нет, поэтому указываем облако GamePush явно:
         // хранилище по умолчанию (preferred) могло бы уйти в неподдерживаемое.
-        await gp.player.sync({ storage: 'cloud' });
+        await gp.player.sync();
 
         return { success: true, isNewRecord: true };
       } catch (error) {

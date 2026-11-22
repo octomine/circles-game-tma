@@ -1,4 +1,6 @@
 // 'paused' — игра идёт, но игровое время стоит: вкладка скрыта или окно потеряло фокус.
+// 'gameover' — раунд проигран. Экран навигации от этого НЕ меняется: состояние лишь
+// показывает оверлей результатов поверх застывшего Pixi-канваса.
 export type GameStatus = 'menu' | 'playing' | 'paused' | 'gameover';
 
 // Строгий тип для HEX-цветов (например, '#FF5733')
@@ -14,10 +16,34 @@ export type ColorHex = `#${string}`;
  * `delay` — сколько миллисекунд сообщению ждать перед появлением. Пачка
  * событий из одного апдейта получает 0, MESSAGE_DELAY_MS, 2 * MESSAGE_DELAY_MS…
  * поэтому сообщения проявляются по очереди, а не наплывают одним кадром.
+ *
+ * `sfx` / `rate` — звуковое сопровождение события. Стор не воспроизводит звук сам
+ * (он ничего не знает про Howler), а лишь называет звук и его тон: очередь
+ * событий остаётся единственным каналом «что произошло» для движка.
  */
 export type GameEvent =
-  | { id: string; type: 'SPAWN_MESSAGE'; x: number; y: number; text: string; delay: number }
-  | { id: string; type: 'WRONG_CLICK'; x: number; y: number; shielded: boolean; delay: number };
+  | {
+      id: string;
+      type: 'SPAWN_MESSAGE';
+      x: number;
+      y: number;
+      /** Текст сообщения; у события «только звук» его нет. */
+      text?: string;
+      delay: number;
+      /** id звука из AUDIO_CONFIG.SFX. */
+      sfx?: string;
+      /** Питч конкретного проигрывания: комбо ускоряет звук. */
+      rate?: number;
+    }
+  | {
+      id: string;
+      type: 'WRONG_CLICK';
+      x: number;
+      y: number;
+      shielded: boolean;
+      delay: number;
+      sfx?: string;
+    };
 
 // Чистые данные состояния
 export interface GameSessionData {
@@ -54,7 +80,8 @@ export interface GameSessionData {
 
 // Действия, которые могут изменять состояние
 export interface GameSessionActions {
-  setScreen: (status: GameStatus) => void;
+  /** Перевести сессию в 'gameover'. Зовётся движком после заморозки за промах. */
+  gameOver: () => void;
   startGame: () => void;
   addScore: (points: number) => void;
   loseLife: () => void;

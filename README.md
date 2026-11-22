@@ -13,7 +13,7 @@
 Как устроено:
 
 - **Next.js 16 (App Router) в режиме статического экспорта** — в `next.config.ts` задано `output: 'export'`, `trailingSlash: true` и `assetPrefix: './'` для production-сборки. Приложение собирается в набор статических файлов, серверный рантайм не используется.
-- **Одна страница.** `app/page.tsx` рендерит `GameRouterView`; экраны (`menu` | `game` | `gameover` | `leaderboard`) переключаются React-состоянием, URL не меняется.
+- **Одна страница.** `app/page.tsx` рендерит `AppRouter`; экраны (`menu` | `game` | `leaderboard`) переключаются React-состоянием, URL не меняется. Проигрыш — не экран, а тост с результатами поверх застывшего игрового поля.
 - **Игровое поле — PixiJS 8 (WebGL)**, состояние — Zustand, анимации интерфейса — Motion, стили — Tailwind CSS v4, переводы — next-intl (`ru` и `en`, язык берётся из GamePush).
 - **Рекорд и лидерборд — через GamePush SDK** (облако GamePush) с локальным fallback в `localStorage`; там же — настройки звука и геймплей-сессии площадки.
 
@@ -53,18 +53,20 @@
 
 ### Экраны
 
-- **Меню** — старт игры, текущий рекорд, переход в лидерборд, кнопка настроек: открывает попап с переключателями музыки и звуковых эффектов (состояние — в `gp.sounds`, SDK его запоминает между запусками).
+- **Меню** — старт игры, текущий рекорд, переход в лидерборд, кнопка настроек: открывает попап с треугольными слайдерами громкости музыки и эффектов. Мьют — в `gp.sounds` (SDK запоминает его между запусками), громкость — в полях игрока `musicVolume`/`sfxVolume` облака GamePush. Первое нажатие «Играть» запускает фоновую музыку — так обходится блокировка автовоспроизведения.
 - **Игра** — PixiJS-канвас и HUD: счёт, жизни, целевой цвет с круговым таймером, индикатор щита, башня комбо.
-- **Результаты** — счёт с анимацией накрутки (30 шагов за 1.5 с), отметка «новый рекорд», сохранение результата, кнопки «Играть снова» / «Лидерборд» / «В меню».
+- **Результаты** — счёт с анимацией накрутки (30 шагов за 1.5 с), отметка «новый рекорд», сохранение результата, кнопки «Играть снова» / «Лидерборд» / «В меню». Появление окна сопровождается звуком `sfx_gameover` (`AUDIO_CONFIG.SFX.GAMEOVER`).
 - **Лидерборд** — топ-20 по полю `score`, место текущего игрока и 5 ближайших соседей, кнопка обновления, повтор при ошибке загрузки.
 - Переходы между экранами — Motion (fade, zoom, свайпы), фон — анимированный градиент.
 
 ### Известные ограничения
 
 - **Telegram-интеграция не подключена.** `TelegramProvider` написан и экспортируется, но не включён в дерево провайдеров (`AppProviders` собирает только GamePush, Intl и Navigation), поэтому тема, данные пользователя и haptics из Telegram WebApp сейчас не используются. Единственный потребитель `useTelegram` — виджет `TelegramDebugWidget`, который нигде не рендерится. В CSS для переменных `--tg-theme-*` заданы тёмные фолбэки.
-- **Звука как ассетов нет.** `audioService` — заглушка: `playSfx`/`playMusic` только логируют вызов (`TODO` на Howl / `PIXI.sound`). Работает только управление мьютом через `gp.sounds`; в игровом цикле звуки пока не вызываются.
+- **Звук: Howler.js, ассеты — в `public/audio/*.ogg`.** `audioService` (`src/shared/lib/audio`) собирает музыку (`html5` + `loop` + `preload: false`) и эффекты (`preload: true`) по `AUDIO_CONFIG` (`src/entities/game-session/config/audioConfig.ts`). Если файла нет, при загрузке в консоль уходит `console.warn`, а игра продолжается молча. Звуки попадания, промаха и вех вызываются из очереди `GameEvent` в `useGameEngine`; питч попадания растёт вместе с комбо (`AUDIO_CONFIG.COMBO_RATES`). Звук Game Over привязан к тосту результатов: вызов `addToast` передаёт `sfx: AUDIO_CONFIG.SFX.GAMEOVER.id`, а проигрывает его `ToastManager` — в момент появления карточки и ровно один раз (см. ниже).
+- **Звук тоста — ответственность менеджера, а не источника.** Любой тост может указать `sfx` (`ToastData`), но `playSfx` зовётся только из `ToastItem` в `ToastManager`: во-первых, только там известно, что тост действительно отрисован; во-вторых, звук не дублируется в каждой точке `addToast` и наследует правила `audioService` (мьют, отсутствующий ассет). От двойного воспроизведения в StrictMode защищает `useRef` с id уже проигранного звука: повторный прогон эффекта выходит по нему, не доходя до `playSfx`.
+- **Поля `musicVolume`/`sfxVolume` должны существовать в панели GamePush** (тип «число»). Без них громкость читается как 100 %, а запись в облако логирует ошибку и не сохраняется между запусками.
 - **Вехи `slowdown` и `all`** только фиксируются в состоянии — механики слоудауна нет.
-- **`public/` пуста**: статических файлов нет, иконка — `app/favicon.ico`.
+- **`public/` почти пуста**: только `public/audio/*.ogg` (музыка и эффекты), иконка — `app/favicon.ico`.
 - **Метаданные страницы дефолтные**: `title: 'Create Next App'`. В `app/layout.tsx` статически стоит `lang="en"`, фактическую локаль `IntlProviderWrapper` проставляет в `document.documentElement.lang` уже на клиенте.
 - **Автотестов нет** (подробнее в разделе «Тесты»).
 - **Telegram-мок не активируется**: он включается только при `NEXT_PUBLIC_ENABLE_MOCK=true` и внутри неподключённого `TelegramProvider`.
@@ -189,11 +191,11 @@ export const COMBO_CONFIG = {
 
 `projectId` и `publicToken` захардкожены в [`src/shared/gamepush/GamePushProvider.tsx`](src/shared/gamepush/GamePushProvider.tsx) (`PROJECT_ID = 31261`). SDK грузится с зеркал CDN по официальному failover-сценарию: параллельные HEAD-пробы (таймаут 5 с), затем скрипт с первого ответившего зеркала, при ошибке — следующее. Если токен пустой или равен `REPLACE_ME`, SDK не загружается вообще; если инициализация не уложилась в 8 с, провайдер выставляет `isInitFailed`, и игра продолжает работать без SDK.
 
-- `score` — числовое поле игрока в панели GamePush: используется и для рекорда, и для лидерборда. Запись — `player.set(...)` + `player.sync({ storage: 'cloud' })`, только если новый результат больше сохранённого.
+- `score` — числовое поле игрока в панели GamePush: используется и для рекорда, и для лидерборда. Запись — `player.set(...)` + `player.sync()`, только если новый результат больше сохранённого.
 - `fallback_bestScore` — ключ `localStorage`, куда пишется рекорд, когда облако недоступно (см. [`src/entities/player-score/model/constants.ts`](src/entities/player-score/model/constants.ts)).
 - `sounds` — мьют музыки и эффектов. SDK — единственный источник истины: `useGameSounds` подписывается на `mute`/`unmute` и `:music`/`:sfx`, а переключение идёт методами SDK, не локальным стейтом.
 - `language` — язык игрока (`ISO 639-1`, может прийти с регионом); нормализуется в `resolveLocale`, неподдерживаемое сводится к `en`.
-- Сигналы площадки: `gameStart()` — один раз за жизнь страницы после первого отрисованного кадра (`GameRouterView`); `gameplayStart()`/`gameplayStop()` — границы раунда, идемпотентны через модульный флаг (`src/shared/gamepush/gameplay.ts`).
+- Сигналы площадки: `gameStart()` — один раз за жизнь страницы после первого отрисованного кадра (`AppRouter`); `gameplayStart()`/`gameplayStop()` — границы раунда, идемпотентны через модульный флаг (`src/shared/gamepush/gameplay.ts`). `gameplayStop()` шлёт тост результатов при монтировании, `gameplayStart()` — мост в `GameView` при возврате из `'gameover'`.
 
 ### Тема и переводы
 
@@ -238,18 +240,18 @@ circles-game-tma/
 ├── app/                                       # точки входа Next.js
 │   ├── layout.tsx                             # html/body, локальный Nunito, viewport, провайдеры
 │   ├── providers.tsx                          # AppProviders: GamePush → Intl → Navigation
-│   ├── page.tsx                               # рендерит GameRouterView
+│   ├── page.tsx                               # рендерит AppRouter
 │   ├── fonts/                                 # Nunito woff2 (cyrillic + latin, 400/700/900)
 │   └── favicon.ico
 ├── pages/README.md                            # заглушка: снимает конфликт App Router с FSD
 └── src/
     ├── app/                                   # инфраструктура приложения
+    │   ├── router/AppRouter.tsx               # карта экранов, Motion-переходы, фон, звук
     │   ├── providers/                         # IntlProvider, TelegramProvider*
     │   ├── styles/globals.css                 # тема Tailwind v4, фолбэки --tg-theme-*
     │   └── types/telegram.d.ts
     ├── pages/                                 # композиция экранов
-    │   ├── game/ui/GameView.tsx               # канвас + HUD, мосты «стор → экран/GamePush»
-    │   └── game-router/ui/GameRouterView.tsx  # карта экранов, Motion-переходы, фон, звук
+    │   └── game/ui/GameView.tsx               # канвас + HUD + ToastManager, мост «стор → GamePush»
     ├── widgets/
     │   ├── main-menu/                         # MainMenuWidget, SettingsPopup
     │   ├── game-canvas/                       # PixiJS-поле
@@ -259,26 +261,30 @@ circles-game-tma/
     │   │   └── ui/GameCanvasWidget.tsx
     │   ├── game-hud/                          # ScoreDisplay, LivesDisplay (жизни + щит),
     │   │                                      # TargetColorIndicator, ComboTower из entities
-    │   ├── game-over/                         # экран результатов
+    │   ├── toast-manager/                     # слой тостов: реестр TOAST_COMPONENTS,
+    │   │                                      # ui/toasts/GameOverToast — результаты раунда;
+    │   │                                      # проигрывание sfx тоста (audioService)
     │   ├── leaderboard-screen/                # экран лидерборда
     │   └── telegram-debug/                    # debug-виджет (нигде не рендерится)
     ├── features/
     │   ├── leaderboard/                       # useFetchLeaderboard, usePlayerRating, mappers
     │   ├── save-score/                        # useSaveScore
-    │   └── sound-control/                     # audioService, useGameAudio, useGameSounds
+    │   └── sound-control/                     # useGameAudio, useGameSounds, constants
     ├── entities/
     │   ├── game-session/                      # Zustand-стор
     │   │   ├── model/                         # gameSessionStore.ts, defaults.ts
-    │   │   ├── config/                        # constants.ts, comboConfig.ts, uiConfig.ts
+    │   │   ├── config/                        # constants.ts, comboConfig.ts, uiConfig.ts,
+    │   │   │                                  # audioConfig.ts
     │   │   ├── types/                         # gameSessionStore.types.ts
     │   │   └── ui/                            # ComboTower (в HUD), ComboHistogram (не используется)
     │   └── player-score/                      # рекорд: облако GamePush + fallback
     └── shared/
         ├── gamepush/                          # загрузка SDK, useGamePush, gameplay-сигналы
         ├── i18n/                              # config.ts, request.ts, messages.ts, locales/{ru,en}/
-        ├── lib/                               # cn.ts, number.ts, telegram/, telegram-mock.ts
+        ├── lib/                               # audio/ (audioService на Howler), toast/ (стор тостов),
+        │                                      # cn.ts, number.ts, telegram/, telegram-mock.ts
         ├── navigation/                        # экраны в React-состоянии
-        └── ui/                                # Button, Card, Toggle, Typography, Animated*
+        └── ui/                                # Button, Card, Toggle, VolumeSlider, Typography, Animated*
 ```
 
 \* `TelegramProvider` экспортируется, но в дерево провайдеров не включён — см. «Известные ограничения».

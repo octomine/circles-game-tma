@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 
 import type { GameEvent, GameSessionState } from '../types/gameSessionStore.types';
+import { AUDIO_CONFIG } from '../config/audioConfig';
 import { GAME_CONFIG } from '../config/constants';
 import {
   COMBO_CONFIG,
@@ -41,10 +42,36 @@ const MILESTONE_MESSAGE_TEXT: Partial<Record<ComboMilestone, string>> = {
   extraLife: '❤️',
 };
 
+/**
+ * Питч звука попадания по длине комбо.
+ *
+ * Индекс ограничен длиной таблицы: за её пределами тон остаётся максимальным,
+ * иначе комбо 15 дало бы `undefined` в `rate()` и Howler молча ничего не сыграл бы.
+ */
+const getComboRate = (combo: number): number => {
+  const rates = AUDIO_CONFIG.COMBO_RATES;
+  const index = Math.min(Math.max(combo, 1), rates.length) - 1;
+
+  return rates[index];
+};
+
+/**
+ * Количество сообщений с текстом в очереди.
+ *
+ * Задержка вехи считается по ним, а не по длине очереди: событие «только звук»
+ * тоже лежит в `pendingEvents`, и оно сдвигало бы появление текста на лишние
+ * MESSAGE_DELAY_MS, хотя визуально ничего не рисует.
+ */
+const countPendingMessages = (events: GameEvent[]): number =>
+  events.filter((event) => event.type === 'SPAWN_MESSAGE' && event.text !== undefined).length;
+
 export const useGameSessionStore = create<GameSessionState>((set, get) => ({
   ...getDefaultGameData(),
 
-  setScreen: (status) => set({ status }),
+  gameOver: () =>
+    // Переход только из 'playing': повторный вызов из тикера и смена статуса после
+    // паузы не должны перезаписывать уже выставленный результат.
+    set((state) => (state.status === 'playing' ? { status: 'gameover' } : state)),
 
   startGame: () => {
     const defaults = getDefaultGameData();
@@ -214,24 +241,39 @@ export const useGameSessionStore = create<GameSessionState>((set, get) => ({
       const milestoneText =
         isNewMilestone && milestone !== null ? MILESTONE_MESSAGE_TEXT[milestone] : undefined;
 
-      // Задержка = позиция события в очереди * MESSAGE_DELAY_MS: пачка событий,
-      // рождённая одним апдейтом, проявится по очереди. Отдельного executeAt нет
-      // намеренно: очередь вычитывается в ближайшем кадре, поэтому момент «когда
-      // применить» уже задан кадровой границей, а разнос по времени — забота
-      // самого FloatingMessage. Один таймер в одном месте вместо двух.
-      const pendingEvents: GameEvent[] = milestoneText
-        ? [
-            ...state.pendingEvents,
-            {
-              id: nextEventId(),
-              type: 'SPAWN_MESSAGE',
-              x,
-              y,
-              text: milestoneText,
-              delay: state.pendingEvents.length * UI_CONFIG.MESSAGE_DELAY_MS,
-            },
-          ]
-        : state.pendingEvents;
+      // Звук попадания — отдельным событием на КАЖДЫЙ клик: текст ему не нужен,
+      // но тон (rate) растёт вместе с комбо, а вычисляет его стор, который знает
+      // актуальную серию. Движок только проигрывает то, что здесь названо.
+      const clickEvent: GameEvent = {
+        id: nextEventId(),
+        type: 'SPAWN_MESSAGE',
+        x,
+        y,
+        delay: 0,
+        sfx: AUDIO_CONFIG.SFX.CLICK.id,
+        rate: getComboRate(nextCombo),
+      };
+
+      // Задержка = число уже стоящих в очереди сообщений * MESSAGE_DELAY_MS:
+      // пачка текстов, рождённая одним апдейтом, проявится по очереди. Отдельного
+      // executeAt нет намеренно: очередь вычитывается в ближайшем кадре, поэтому
+      // момент «когда применить» уже задан кадровой границей, а разнос по времени —
+      // забота самого FloatingMessage. Один таймер в одном месте вместо двух.
+      const milestoneEvent: GameEvent | null = milestoneText
+        ? {
+            id: nextEventId(),
+            type: 'SPAWN_MESSAGE',
+            x,
+            y,
+            text: milestoneText,
+            delay: countPendingMessages(state.pendingEvents) * UI_CONFIG.MESSAGE_DELAY_MS,
+            sfx: AUDIO_CONFIG.SFX.MILESTONE.id,
+          }
+        : null;
+
+      const pendingEvents: GameEvent[] = milestoneEvent
+        ? [...state.pendingEvents, clickEvent, milestoneEvent]
+        : [...state.pendingEvents, clickEvent];
 
       // Всё пишем одним обновлением: счёт, жизни и комбо должны меняться вместе,
       // иначе подписчики успели бы увидеть промежуточное состояние.
@@ -259,7 +301,17 @@ export const useGameSessionStore = create<GameSessionState>((set, get) => ({
         hasShield: false,
         pendingEvents: [
           ...pendingEvents,
-          { id: nextEventId(), type: 'WRONG_CLICK', x, y, shielded: true, delay: 0 },
+          {
+            id: nextEventId(),
+            type: 'WRONG_CLICK',
+            x,
+            y,
+            shielded: true,
+            delay: 0,
+            // Щит — не наказание: мягкий звук интерфейса вместо тревожного
+            // промаха, чтобы игрок услышал, что защита сработала.
+            sfx: AUDIO_CONFIG.SFX.SHIELD.id,
+          },
         ],
       });
       return;
@@ -269,6 +321,13 @@ export const useGameSessionStore = create<GameSessionState>((set, get) => ({
     // всё одним обновлением, чтобы подписчики не увидели промежуточное состояние.
     // Отдельный loseLife() убрал бы обновление стора на два, и часть UI успела
     // бы отрисоваться с новыми жизнями, но со старым комбо.
+    //
+    // Статус здесь НЕ переводится в 'gameover' даже при lives === 0, и это
+    // осознанный инвариант: тикер останавливается сразу, как только статус
+    // перестал быть 'playing', поэтому событие WRONG_CLICK осталось бы в очереди
+    // необработанным — смертельный промах прошёл бы без разбитого сердца, звука
+    // и заморозки. Переход делает движок (gameOver()) после LOSE_LIFE_FREEZE_MS,
+    // когда наказание уже отыграно.
     set({
       combo: 0,
       lastInterval: null,
@@ -277,7 +336,15 @@ export const useGameSessionStore = create<GameSessionState>((set, get) => ({
       lives: lives - 1,
       pendingEvents: [
         ...pendingEvents,
-        { id: nextEventId(), type: 'WRONG_CLICK', x, y, shielded: false, delay: 0 },
+        {
+          id: nextEventId(),
+          type: 'WRONG_CLICK',
+          x,
+          y,
+          shielded: false,
+          delay: 0,
+          sfx: AUDIO_CONFIG.SFX.WRONG.id,
+        },
       ],
     });
   },

@@ -4,11 +4,17 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { useGamePush } from '@/shared/gamepush';
 
+import { DEFAULT_VOLUME, MUSIC_VOLUME_FIELD, SFX_VOLUME_FIELD, normalizeVolume } from './constants';
+
 export interface UseGameSoundsResult {
   /** Музыка заглушена — по данным SDK, а не по локальному флагу. */
   isMusicMuted: boolean;
   /** Звуковые эффекты заглушены — по данным SDK. */
   isSfxMuted: boolean;
+  /** Громкость музыки в процентах (0–100) из полей игрока. */
+  musicVolume: number;
+  /** Громкость эффектов в процентах (0–100) из полей игрока. */
+  sfxVolume: number;
   /** Переключить музыку: команда уходит в SDK, состояние придёт событием. */
   toggleMusic: () => void;
   /** Переключить звуковые эффекты. */
@@ -21,27 +27,44 @@ export interface UseGameSoundsResult {
  * Управление звуком через модуль `gp.sounds` GamePush SDK.
  *
  * Локальное состояние здесь — только копия для рендера. Единственный источник
- * истины — SDK: он сам запоминает выбор игрока между перезагрузками и
+ * истины по мьюту — SDK: он сам запоминает выбор игрока между перезагрузками и
  * синхронизирует его с площадкой, поэтому держать мьют в полях игрока или в сторе
  * нельзя — эта копия неизбежно разойдётся с реальным состоянием.
+ *
+ * Громкость, наоборот, живёт в полях игрока: у `gp.sounds` есть только «вкл/выкл»,
+ * а плавное значение нужно сохранять самому — этим занимается `useGameAudio`.
  */
 export const useGameSounds = (): UseGameSoundsResult => {
   const { gp, isReady } = useGamePush();
 
   const [isMusicMuted, setIsMusicMuted] = useState(false);
   const [isSfxMuted, setIsSfxMuted] = useState(false);
+  const [musicVolume, setMusicVolume] = useState(DEFAULT_VOLUME);
+  const [sfxVolume, setSfxVolume] = useState(DEFAULT_VOLUME);
 
   // Ссылка на модуль звука: объект живёт вместе с инстансом SDK, поэтому
   // в зависимостях эффекта она стабильна и не переподписывает слушателей.
   const sounds = gp?.sounds ?? null;
 
   useEffect(() => {
-    if (!isReady || !sounds) return;
+    if (!isReady || !sounds || !gp) return;
 
     // Начальное состояние читаем из SDK, а не из дефолтов useState: к моменту
     // isReady модуль уже восстановил сохранённый выбор игрока из storage.
     setIsMusicMuted(sounds.isMusicMuted);
     setIsSfxMuted(sounds.isSFXMuted);
+
+    // Громкость читаем здесь же: провайдер ставит isReady только после
+    // `player.ready`, то есть поля уже синхронизированы с облаком. До этого
+    // момента get() вернул бы undefined, и настройка мигнула бы дефолтом.
+    try {
+      setMusicVolume(normalizeVolume(gp.player.get(MUSIC_VOLUME_FIELD)));
+      setSfxVolume(normalizeVolume(gp.player.get(SFX_VOLUME_FIELD)));
+    } catch (error) {
+      // Недоступное поле или сбой SDK не должны ломать настройки: остаёмся
+      // на дефолтах, игра работает со звуком по умолчанию.
+      console.warn('[sound-control] Не удалось прочитать громкость из GamePush:', error);
+    }
 
     // Обработчики объявлены константами, а не инлайн-стрелками: off принимает
     // только ту же ссылку, что получил on. Иначе в очистке окажется новая функция,
@@ -74,7 +97,7 @@ export const useGameSounds = (): UseGameSoundsResult => {
       sounds.off('mute', syncFromSdk);
       sounds.off('unmute', syncFromSdk);
     };
-  }, [isReady, sounds]);
+  }, [isReady, sounds, gp]);
 
   const toggleMusic = useCallback(() => {
     if (!sounds) return;
@@ -109,5 +132,13 @@ export const useGameSounds = (): UseGameSoundsResult => {
     }
   }, [sounds, isSfxMuted]);
 
-  return { isMusicMuted, isSfxMuted, toggleMusic, toggleSfx, isReady };
+  return {
+    isMusicMuted,
+    isSfxMuted,
+    musicVolume,
+    sfxVolume,
+    toggleMusic,
+    toggleSfx,
+    isReady,
+  };
 };

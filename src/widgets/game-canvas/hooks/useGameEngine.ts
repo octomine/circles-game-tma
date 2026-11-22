@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import * as PIXI from 'pixi.js';
 
 import { GAME_CONFIG, useGameSessionStore, type GameStatus } from '@/entities/game-session';
+import { audioService } from '@/shared/lib/audio';
 
 import { Circle, CrackedHeart, EffectsLayer, FloatingMessage, Particle } from '../lib';
 
@@ -159,20 +160,33 @@ export function useGameEngine({ appRef, isAppReady }: UseGameEngineProps) {
 
     for (const event of pendingEvents) {
       if (event.type === 'SPAWN_MESSAGE') {
-        // delay приходит из стора: он же разносит пачку сообщений по времени.
-        spawnFloatingMessage(event.x, event.y, event.text, event.delay);
-      } else if (!event.shielded) {
-        // Ветка shielded: true сюда не попадает намеренно. Щит гасит промах ещё
-        // в сторе, и визуально промах уже отыгран исчезновением щита в HUD и в
-        // EffectsLayer. Разбитое сердце и заморозка стали бы вторым наказанием
-        // за один и тот же промах, поэтому в PixiJS для щита нет ни одного
-        // эффекта — событие нужно только чтобы движок не рисовал лишнего.
-        spawnCrackedHeart(event.x, event.y);
+        // Текст есть не у всех сообщений: попадание кладёт событие ради звука,
+        // а веха — ради текста. Поэтому сначала звук, затем (если есть) сообщение.
+        if (event.text !== undefined) {
+          // delay приходит из стора: он же разносит пачку сообщений по времени.
+          spawnFloatingMessage(event.x, event.y, event.text, event.delay);
+        }
 
-        // Заморозка стартует здесь, а не в обработчике клика: щит проходит мимо
-        // этой ветки и потому не останавливает игру.
-        isFreezingRef.current = true;
-        freezeTimeLeftRef.current = GAME_CONFIG.LOSE_LIFE_FREEZE_MS;
+        if (event.sfx) audioService.playSfx(event.sfx, event.rate);
+      } else {
+        // Промах звучит всегда — и когда его погасил щит (там мягкий sfx_ui),
+        // и когда он стоил жизни (sfx_wrong). Визуальные последствия разные,
+        // поэтому дальше идёт ветка только для нещитового промаха.
+        if (event.sfx) audioService.playSfx(event.sfx);
+
+        if (!event.shielded) {
+          // Ветка shielded: true сюда не попадает намеренно. Щит гасит промах ещё
+          // в сторе, и визуально промах уже отыгран исчезновением щита в HUD и в
+          // EffectsLayer. Разбитое сердце и заморозка стали бы вторым наказанием
+          // за один и тот же промах, поэтому в PixiJS для щита нет ни одного
+          // эффекта — событие нужно только чтобы движок не рисовал лишнего.
+          spawnCrackedHeart(event.x, event.y);
+
+          // Заморозка стартует здесь, а не в обработчике клика: щит проходит мимо
+          // этой ветки и потому не останавливает игру.
+          isFreezingRef.current = true;
+          freezeTimeLeftRef.current = GAME_CONFIG.LOSE_LIFE_FREEZE_MS;
+        }
       }
 
       // Событие отработано — убираем сразу, иначе оно сработает на следующем кадре.
@@ -326,7 +340,9 @@ export function useGameEngine({ appRef, isAppReady }: UseGameEngineProps) {
 
     const ticker = (ticker: PIXI.Ticker) => {
       const currentStatus = useGameSessionStore.getState().status;
-      // На паузе цикл стоит целиком: игровое время не копится, круги не стареют.
+      // На паузе и после проигрыша цикл стоит целиком: игровое время не копится,
+      // круги не стареют. Канвас при этом остаётся смонтированным — в 'gameover'
+      // он служит застывшим фоном под оверлеем результатов.
       if (currentStatus !== 'playing') return;
 
       const dt = ticker.deltaMS;
@@ -349,10 +365,12 @@ export function useGameEngine({ appRef, isAppReady }: UseGameEngineProps) {
           isFreezingRef.current = false;
           freezeTimeLeftRef.current = 0;
 
-          // Проверяем, не закончились ли жизни
+          // Проверяем, не закончились ли жизни. Переводим именно внутреннее
+          // состояние сессии: навигацию движок больше не трогает, экран остаётся
+          // 'game', а оверлей результатов — забота GameView.
           const currentLives = useGameSessionStore.getState().lives;
           if (currentLives <= 0) {
-            useGameSessionStore.getState().setScreen('gameover');
+            useGameSessionStore.getState().gameOver();
           }
         }
 

@@ -1,5 +1,5 @@
-import { GameRouterView } from '@/pages/game-router';
+import { AppRouter } from '@/app/router';
 
 export default function Home() {
-  return <GameRouterView />;
+  return <AppRouter />;
 }
